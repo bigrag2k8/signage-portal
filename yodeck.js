@@ -1,7 +1,7 @@
 var axios = require('axios');
 var FormData = require('form-data');
 
-var BASE_URL = 'https://app.yodeck.com/api/v1';
+var BASE_URL = process.env.YODECK_BASE_URL || 'https://app.yodeck.com/api/v1';
 
 function makeClient(token) {
   return axios.create({
