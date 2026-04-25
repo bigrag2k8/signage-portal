@@ -1,7 +1,7 @@
 var axios = require('axios');
 var FormData = require('form-data');
 
-var BASE_URL = 'https://app.yodeck.com/api/v1';
+var BASE_URL = 'https://app.yodeck.com/api/v2';
 
 function makeClient(token) {
   return axios.create({
@@ -29,7 +29,7 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
 }
 
 function getScreens(token) {
-  return makeClient(token).get('/device/').then(function(res) {
+  return makeClient(token).get('/screens/').then(function(res) {
     return res.data.results || res.data;
   });
 }
@@ -37,9 +37,9 @@ function getScreens(token) {
 function addMediaToScreen(token, screenId, mediaId, duration) {
   var api = makeClient(token);
   // Try /screen/ first, fall back to /monitor/
-  var screenEndpoint = '/device/';
+  var screenEndpoint = '/screens/';
   return api.get(screenEndpoint + screenId + '/').catch(function() {
-    screenEndpoint = '/device/';
+    screenEndpoint = '/screens/';
     return api.get(screenEndpoint + screenId + '/');
   }).then(function(monitorRes) {
     var monitor = monitorRes.data;
@@ -79,12 +79,12 @@ function verifyToken(token) {
   }
   var cleanToken = token.trim();
   console.log('Verifying token:', cleanToken.substring(0, 12) + '...');
-  console.log('URL:', BASE_URL + '/device/');
+  console.log('URL:', BASE_URL + '/screens/');
 
   var authHeader = 'Token ' + cleanToken;
   console.log('Full Authorization header being sent:', authHeader.substring(0, 40) + '...');
 
-  return axios.get(BASE_URL + '/device/', {
+  return axios.get(BASE_URL + '/screens/', {
     headers: { Authorization: authHeader }
   }).then(function(res) {
     console.log('SUCCESS, status:', res.status);
@@ -92,7 +92,7 @@ function verifyToken(token) {
   }).catch(function(e1) {
     console.log('Token prefix failed, trying without prefix...');
     // Try sending the token value directly without "Token" prefix
-    return axios.get(BASE_URL + '/device/', {
+    return axios.get(BASE_URL + '/screens/', {
       headers: { Authorization: cleanToken }
     }).then(function(res) {
       console.log('SUCCESS without Token prefix, status:', res.status);
