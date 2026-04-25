@@ -3,218 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign In — Signage Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<title>Publish Content — Signage Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --border: #1e1e2e;
-    --accent: #6366f1;
-    --accent-glow: rgba(99,102,241,0.3);
-    --text: #f1f1f3;
-    --muted: #6b6b7a;
-    --error: #f87171;
-  }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* Background grid */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-  }
-
-  /* Glow orb */
-  body::after {
-    content: '';
-    position: fixed;
-    top: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .card {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 400px;
-    margin: 24px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 48px 40px;
-    animation: fadeUp 0.5s ease;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .logo-area {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-
-  .logo-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-radius: 14px;
-    margin-bottom: 16px;
-    box-shadow: 0 0 30px var(--accent-glow);
-  }
-
-  .logo-icon svg {
-    width: 26px;
-    height: 26px;
-    fill: white;
-  }
-
-  h1 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 26px;
-    font-weight: 400;
-    color: var(--text);
-    margin-bottom: 6px;
-  }
-
-  .subtitle {
-    font-size: 14px;
-    color: var(--muted);
-  }
-
-  .field {
-    margin-bottom: 18px;
-  }
-
-  label {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--muted);
-    margin-bottom: 8px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  input[type="text"], input[type="password"] {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  .btn {
-    width: 100%;
-    padding: 13px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-top: 8px;
-    transition: opacity 0.2s, transform 0.1s;
-    letter-spacing: 0.02em;
-  }
-
-  .btn:hover { opacity: 0.9; }
-  .btn:active { transform: scale(0.99); }
-
-  .error-msg {
-    background: rgba(248,113,113,0.1);
-    border: 1px solid rgba(248,113,113,0.3);
-    color: var(--error);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 13px;
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  .footer-link {
-    text-align: center;
-    margin-top: 24px;
-    font-size: 13px;
-    color: var(--muted);
-  }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;--accent:#6366f1;--glow:rgba(99,102,241,0.25);--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-family:'DM Serif Display',serif;font-size:18px;display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent)}
+.logout{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s}
+.logout:hover{border-color:var(--accent);color:var(--text)}
+main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:40px 24px 80px}
+.page-hdr{margin-bottom:36px}
+.page-hdr h1{font-family:'DM Serif Display',serif;font-size:32px;font-weight:400;margin-bottom:8px}
+.page-hdr p{color:var(--muted);font-size:15px}
+.steps{display:grid;gap:20px}
+.step{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px}
+.step-hdr{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.step-num{width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.step-title{font-size:16px;font-weight:600}
+.dropzone{border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface2)}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(99,102,241,.05)}
+.dropzone svg{width:40px;height:40px;fill:var(--muted);margin-bottom:12px}
+.dropzone h3{font-size:16px;margin-bottom:6px}
+.dropzone p{font-size:13px;color:var(--muted)}
+.dropzone .cta{margin-top:8px;color:var(--accent);font-size:13px}
+.file-info{display:none;align-items:center;gap:14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:14px 18px}
+.file-info.show{display:flex}
+.file-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.file-icon svg{width:20px;height:20px;fill:white}
+.file-meta{flex:1}
+.file-name{font-size:14px;font-weight:500;word-break:break-all}
+.file-size{font-size:12px;color:var(--muted);margin-top:2px}
+.rm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;transition:color .2s}
+.rm-btn:hover{color:var(--error)}
+.field{margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.05em;text-transform:uppercase}
+input[type=text],input[type=number]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.screens-loading{color:var(--muted);font-size:14px;text-align:center;padding:24px}
+.screens-err{color:var(--error);font-size:14px;padding:12px;background:rgba(248,113,113,.08);border-radius:8px;display:none}
+.screens-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.screen-card{border:2px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .2s,background .2s;user-select:none}
+.screen-card:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.04)}
+.screen-card.sel{border-color:var(--accent);background:rgba(99,102,241,.1)}
+.s-status{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-bottom:8px}
+.s-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.s-dot.on{background:var(--success)}
+.s-name{font-size:14px;font-weight:500}
+.s-check{float:right;color:var(--accent);display:none}
+.screen-card.sel .s-check{display:inline}
+.pub-btn{width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer;transition:opacity .2s}
+.pub-btn:hover:not(:disabled){opacity:.9}
+.pub-btn:disabled{opacity:.5;cursor:not-allowed}
+.prog{height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0;transition:width .3s;margin-top:12px;display:none}
+#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-size:14px;display:flex;align-items:center;gap:10px;z-index:1000;transition:transform .35s cubic-bezier(.34,1.56,.64,1);min-width:280px;max-width:90vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(52,211,153,.4)}
+#toast.error{border-color:rgba(248,113,113,.4)}
+.mt16{margin-top:16px}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo-area">
-    <div class="logo-icon">
-      <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
-    </div>
-    <h1>Client Portal</h1>
-    <p class="subtitle">Sign in to publish your content</p>
+<nav>
+  <div class="nav-logo"><div class="dot"></div>Signage Portal</div>
+  <a href="/logout" class="logout">Sign Out</a>
+</nav>
+<main>
+  <div class="page-hdr">
+    <h1>Publish Content</h1>
+    <p>Upload your design and send it live to your digital screens in seconds.</p>
   </div>
+  <div class="steps">
 
-  <div id="error" class="error-msg" style="display:none">Invalid username or password.</div>
-
-  <form method="POST" action="/login">
-    <div class="field">
-      <label>Username</label>
-      <input type="text" name="username" autocomplete="username" required autofocus>
+    <div class="step">
+      <div class="step-hdr"><div class="step-num">1</div><div class="step-title">Upload Your Design</div></div>
+      <input type="file" id="file-input" accept="image/*,video/mp4,application/pdf" style="display:none">
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+        <h3>Drop your file here</h3>
+        <p>JPG, PNG, GIF, MP4, PDF &middot; Up to 200MB</p>
+        <p class="cta">or click to browse</p>
+      </div>
+      <div class="file-info" id="file-info">
+        <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg></div>
+        <div class="file-meta"><div class="file-name" id="fname"></div><div class="file-size" id="fsize"></div></div>
+        <button class="rm-btn" id="rm-btn" title="Remove">x</button>
+      </div>
+      <div class="field mt16">
+        <label>Display Name (optional)</label>
+        <input type="text" id="display-name" placeholder="e.g. Summer Promo 2025">
+      </div>
     </div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" name="password" autocomplete="current-password" required>
-    </div>
-    <button type="submit" class="btn">Sign In</button>
-  </form>
 
-  <div class="footer-link">Need access? Contact your account manager.</div>
-</div>
+    <div class="step">
+      <div class="step-hdr"><div class="step-num">2</div><div class="step-title">Select Your Screens</div></div>
+      <div class="screens-loading" id="screens-loading">Loading your screens...</div>
+      <div class="screens-err" id="screens-err"></div>
+      <div class="screens-grid" id="screens-grid"></div>
+    </div>
+
+    <div class="step">
+      <div class="step-hdr"><div class="step-num">3</div><div class="step-title">Set Duration &amp; Publish</div></div>
+      <div class="field">
+        <label>Display Duration (seconds)</label>
+        <input type="number" id="duration" value="10" min="1" max="3600" style="max-width:160px">
+      </div>
+      <button class="pub-btn" id="pub-btn">Publish to Screens</button>
+      <div class="prog" id="prog"></div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast"><span id="toast-icon"></span><span id="toast-msg"></span></div>
 
 <script>
-  if (location.search.includes('error=1')) {
-    document.getElementById('error').style.display = 'block';
-  }
+var selectedFile = null;
+var selectedScreens = [];
+
+var dropzone = document.getElementById('dropzone');
+var fileInput = document.getElementById('file-input');
+var fileInfo = document.getElementById('file-info');
+
+dropzone.addEventListener('click', function(){ fileInput.click(); });
+fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('over'); });
+dropzone.addEventListener('drop', function(e){
+  e.preventDefault(); dropzone.classList.remove('over');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+document.getElementById('rm-btn').addEventListener('click', function(){
+  selectedFile = null; fileInput.value = '';
+  dropzone.style.display = ''; fileInfo.classList.remove('show');
+});
+
+function handleFile(f){
+  selectedFile = f;
+  document.getElementById('fname').textContent = f.name;
+  document.getElementById('fsize').textContent = fmtBytes(f.size);
+  dropzone.style.display = 'none'; fileInfo.classList.add('show');
+}
+
+function fmtBytes(b){
+  if(b < 1024) return b+' B';
+  if(b < 1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
+}
+
+function loadScreens(){
+  fetch('/api/screens').then(function(r){ return r.json(); }).then(function(data){
+    var loadEl = document.getElementById('screens-loading');
+    var errEl = document.getElementById('screens-err');
+    var grid = document.getElementById('screens-grid');
+    loadEl.style.display = 'none';
+    if(data.error){ errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    var screens = data.screens || [];
+    if(!screens.length){ errEl.textContent = 'No screens found. Contact your account manager.'; errEl.style.display = 'block'; return; }
+    grid.innerHTML = screens.map(function(s){
+      return '<div class="screen-card" data-id="'+s.id+'">'
+        +'<div class="s-status"><div class="s-dot'+(s.online?' on':'')+'"></div>'+(s.online?'Online':'Offline')+'<span class="s-check"> \u2713</span></div>'
+        +'<div class="s-name">'+(s.name||'Screen '+s.id)+'</div>'
+        +'</div>';
+    }).join('');
+    grid.querySelectorAll('.screen-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        card.classList.toggle('sel');
+        var id = String(card.dataset.id);
+        if(card.classList.contains('sel')){ selectedScreens.push(id); }
+        else{ selectedScreens = selectedScreens.filter(function(x){ return x !== id; }); }
+      });
+    });
+  }).catch(function(){ document.getElementById('screens-loading').textContent = 'Error loading screens. Please refresh.'; });
+}
+
+document.getElementById('pub-btn').addEventListener('click', function(){
+  if(!selectedFile) return showToast('Please select a file first.','error');
+  if(!selectedScreens.length) return showToast('Please select at least one screen.','error');
+  var btn = document.getElementById('pub-btn');
+  var prog = document.getElementById('prog');
+  btn.disabled = true; btn.textContent = 'Publishing...';
+  prog.style.display = 'block'; prog.style.width = '30%';
+  var form = new FormData();
+  form.append('file', selectedFile);
+  form.append('displayName', document.getElementById('display-name').value);
+  form.append('duration', document.getElementById('duration').value);
+  selectedScreens.forEach(function(id){ form.append('screenIds', id); });
+  prog.style.width = '60%';
+  fetch('/api/publish',{ method:'POST', body:form }).then(function(r){ return r.json(); }).then(function(data){
+    prog.style.width = '100%';
+    setTimeout(function(){ prog.style.display='none'; prog.style.width='0%'; },600);
+    if(data.success){
+      showToast(data.message,'success');
+      selectedFile=null; selectedScreens=[];
+      fileInput.value=''; fileInfo.classList.remove('show');
+      dropzone.style.display='';
+      document.getElementById('display-name').value='';
+      document.querySelectorAll('.screen-card.sel').forEach(function(c){ c.classList.remove('sel'); });
+    } else { showToast(data.error||'Something went wrong.','error'); }
+  }).catch(function(){ showToast('Network error. Please try again.','error'); })
+  .finally(function(){ btn.disabled=false; btn.textContent='Publish to Screens'; });
+});
+
+var toastTimer;
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  document.getElementById('toast-msg').textContent=msg;
+  document.getElementById('toast-icon').textContent=type==='success'?'✅':'⚠️';
+  t.className='show '+type;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ t.className=''; },4500);
+}
+
+loadScreens();
 </script>
 </body>
 </html>

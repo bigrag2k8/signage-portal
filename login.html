@@ -1,4 +1,3 @@
-// middleware/auth.js
 exports.requireClient = (req, res, next) => {
   if (req.session && req.session.clientId) return next();
   res.redirect('/login');

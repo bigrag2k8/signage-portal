@@ -1,10 +1,10 @@
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const path = require('path');
+var low = require('lowdb');
+var FileSync = require('lowdb/adapters/FileSync');
+var path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'portal.json');
-const adapter = new FileSync(DB_PATH);
-const db = low(adapter);
+var DB_PATH = process.env.DB_PATH || path.join(__dirname, 'portal.json');
+var adapter = new FileSync(DB_PATH);
+var db = low(adapter);
 
 db.defaults({
   clients: [],
@@ -13,22 +13,30 @@ db.defaults({
   _nextLogId: 1
 }).write();
 
-const dbHelper = {
-  getClient(id) {
+var dbHelper = {
+
+  getClient: function(id) {
     return db.get('clients').find({ id: Number(id) }).value();
   },
-  getClientByUsername(username) {
-    return db.get('clients').find({ username, active: 1 }).value();
+
+  getClientByUsername: function(username) {
+    return db.get('clients').find({ username: username, active: 1 }).value();
   },
-  getAllClients() {
+
+  getAllClients: function() {
     return db.get('clients').orderBy(['created_at'], ['desc']).value();
   },
-  createClient({ name, email, username, password, yodeck_token, assigned_screens }) {
-    const id = db.get('_nextClientId').value();
-    const client = {
-      id, name, email, username, password,
-      yodeck_token: yodeck_token || null,
-      assigned_screens: JSON.stringify(assigned_screens || []),
+
+  createClient: function(data) {
+    var id = db.get('_nextClientId').value();
+    var client = {
+      id: id,
+      name: data.name,
+      email: data.email,
+      username: data.username,
+      password: data.password,
+      yodeck_token: data.yodeck_token || null,
+      assigned_screens: JSON.stringify(data.assigned_screens || []),
       active: 1,
       created_at: new Date().toISOString()
     };
@@ -36,32 +44,42 @@ const dbHelper = {
     db.set('_nextClientId', id + 1).write();
     return { lastInsertRowid: id };
   },
-  updateClient(id, { name, email, username, password, yodeck_token, assigned_screens, active }) {
-    const updates = {
-      name, email, username,
-      yodeck_token: yodeck_token || null,
-      assigned_screens: JSON.stringify(assigned_screens || []),
-      active: active ? 1 : 0
+
+  updateClient: function(id, data) {
+    var updates = {
+      name: data.name,
+      email: data.email,
+      username: data.username,
+      yodeck_token: data.yodeck_token || null,
+      assigned_screens: JSON.stringify(data.assigned_screens || []),
+      active: data.active ? 1 : 0
     };
-    if (password) updates.password = password;
+    if (data.password) updates.password = data.password;
     db.get('clients').find({ id: Number(id) }).assign(updates).write();
   },
-  deleteClient(id) {
+
+  deleteClient: function(id) {
     db.get('clients').remove({ id: Number(id) }).write();
   },
-  logPublish({ client_id, client_name, filename, screen_names }) {
-    const id = db.get('_nextLogId').value();
+
+  logPublish: function(data) {
+    var id = db.get('_nextLogId').value();
     db.get('publish_log').push({
-      id, client_id: Number(client_id), client_name,
-      filename, screen_names,
+      id: id,
+      client_id: Number(data.client_id),
+      client_name: data.client_name,
+      filename: data.filename,
+      screen_names: data.screen_names,
       published_at: new Date().toISOString(),
       status: 'success'
     }).write();
     db.set('_nextLogId', id + 1).write();
   },
-  getLog(limit = 100) {
-    return db.get('publish_log').orderBy(['published_at'], ['desc']).take(limit).value();
+
+  getLog: function(limit) {
+    return db.get('publish_log').orderBy(['published_at'], ['desc']).take(limit || 100).value();
   }
+
 };
 
 module.exports = dbHelper;
