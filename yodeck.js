@@ -1,7 +1,7 @@
 var axios = require('axios');
 var FormData = require('form-data');
 
-var BASE_URL = process.env.YODECK_BASE_URL || 'https://app.yodeck.com/api/v1';
+var BASE_URL = 'https://app.yodeck.com/api/v1';
 
 function makeClient(token) {
   return axios.create({
@@ -29,22 +29,17 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
 }
 
 function getScreens(token) {
-  var api = makeClient(token);
-  return api.get('/screen/').then(function(res) {
+  return makeClient(token).get('/device/').then(function(res) {
     return res.data.results || res.data;
-  }).catch(function() {
-    return api.get('/monitor/').then(function(res) {
-      return res.data.results || res.data;
-    });
   });
 }
 
 function addMediaToScreen(token, screenId, mediaId, duration) {
   var api = makeClient(token);
   // Try /screen/ first, fall back to /monitor/
-  var screenEndpoint = '/screen/';
+  var screenEndpoint = '/device/';
   return api.get(screenEndpoint + screenId + '/').catch(function() {
-    screenEndpoint = '/monitor/';
+    screenEndpoint = '/device/';
     return api.get(screenEndpoint + screenId + '/');
   }).then(function(monitorRes) {
     var monitor = monitorRes.data;
@@ -83,40 +78,23 @@ function verifyToken(token) {
     return Promise.resolve({ valid: false, error: 'No token provided.' });
   }
   var cleanToken = token.trim();
+  console.log('Verifying token:', cleanToken.substring(0, 12) + '...');
+  console.log('URL:', BASE_URL + '/device/');
 
-  // Try every combination of base path and endpoint
-  var attempts = [
-    'https://abizz.yodeck.com/api/v1/screen/',
-    'https://abizz.yodeck.com/api/v1/monitor/',
-    'https://abizz.yodeck.com/api/screen/',
-    'https://abizz.yodeck.com/api/monitor/',
-    'https://app.yodeck.com/api/v1/screen/',
-    'https://app.yodeck.com/api/v1/monitor/'
-  ];
-
-  function tryNext(i) {
-    if (i >= attempts.length) {
-      return Promise.resolve({ valid: false, error: 'Could not find Yodeck API endpoint. Please open a support ticket with Yodeck and ask: what is the correct REST API base URL for reseller account abizz.yodeck.com?' });
-    }
-    var url = attempts[i];
-    console.log('Trying URL ' + (i+1) + ': ' + url);
-    return axios.get(url, {
-      headers: { Authorization: 'Token ' + cleanToken }
-    }).then(function(res) {
-      console.log('SUCCESS at URL:', url, 'status:', res.status);
-      return { valid: true, apiUrl: url.replace(/\/(screen|monitor)\/$/, '') };
-    }).catch(function(e) {
-      var status = e.response && e.response.status;
-      console.log('URL ' + (i+1) + ' failed HTTP ' + status + ': ' + url);
-      // 401/403 means the URL exists but auth issue — stop and report
-      if (status === 401) return { valid: false, error: 'API found at ' + url + ' but token rejected (401). Check token format is label:value with Administrator role.' };
-      if (status === 403) return { valid: false, error: 'API found at ' + url + ' but permission denied (403). Assign Administrator role to the token in Yodeck.' };
-      // 404 means wrong URL — keep trying
-      return tryNext(i + 1);
-    });
-  }
-
-  return tryNext(0);
+  return axios.get(BASE_URL + '/device/', {
+    headers: { Authorization: 'Token ' + cleanToken }
+  }).then(function(res) {
+    console.log('SUCCESS, status:', res.status);
+    return { valid: true };
+  }).catch(function(e) {
+    var status = e.response && e.response.status;
+    var body = JSON.stringify(e.response && e.response.data);
+    console.log('Failed HTTP ' + status + ':', body);
+    if (status === 401) return { valid: false, error: 'Token rejected (401). Make sure token format is label:tokenvalue (e.g. portal:Ru1MRfz5...)' };
+    if (status === 403) return { valid: false, error: 'Permission denied (403). Assign Administrator role to the token in Yodeck.' };
+    if (status === 404) return { valid: false, error: 'API endpoint not found (404). Please contact Yodeck support.' };
+    return { valid: false, error: 'HTTP ' + status + ': ' + body };
+  });
 }
 
 module.exports = {
