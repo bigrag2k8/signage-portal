@@ -73,43 +73,24 @@ function verifyToken(token) {
     return Promise.resolve({ valid: false, error: 'No token provided.' });
   }
   var cleanToken = token.trim();
+  console.log('Verifying token:', cleanToken.substring(0, 12) + '...');
+  console.log('Authorization header: Token ' + cleanToken.substring(0, 12) + '...');
+  console.log('URL:', BASE_URL + '/monitor/');
 
-  // Try 4 combinations: 2 URL formats x 2 auth header formats
-  var urls = [
-    'https://app.yodeck.com/api/v1',
-    BASE_URL
-  ];
-  var headers = [
-    { Authorization: 'Token ' + cleanToken },
-    { Authorization: 'Api-Key ' + cleanToken }
-  ];
-
-  var attempts = [];
-  urls.forEach(function(url) {
-    headers.forEach(function(h) {
-      attempts.push({ url: url + '/monitor/', headers: h });
-    });
+  return axios.get(BASE_URL + '/monitor/', {
+    headers: { Authorization: 'Token ' + cleanToken }
+  }).then(function(res) {
+    console.log('SUCCESS, status:', res.status);
+    return { valid: true };
+  }).catch(function(e) {
+    var status = e.response && e.response.status;
+    var body = JSON.stringify(e.response && e.response.data);
+    console.log('Failed HTTP ' + status + ':', body);
+    if (status === 401) return { valid: false, error: 'Token rejected (401). Make sure you copied the full token including the label prefix. Format must be: mylabel:TOKENVALUE' };
+    if (status === 403) return { valid: false, error: 'Token valid but permission denied (403). Assign Administrator role when generating the token.' };
+    if (status === 404) return { valid: false, error: 'API endpoint not found (404). Check YODECK_BASE_URL in Railway variables is set to: https://abizz.yodeck.com/api/v1' };
+    return { valid: false, error: 'HTTP ' + status + ': ' + body };
   });
-
-  function tryNext(i) {
-    if (i >= attempts.length) {
-      return Promise.resolve({ valid: false, error: 'All API attempts failed. Please contact Yodeck support to confirm: (1) your account has Premium/Enterprise plan, (2) the API token has a role assigned, and (3) the correct API URL for your reseller account.' });
-    }
-    var attempt = attempts[i];
-    console.log('Attempt ' + (i+1) + ': ' + JSON.stringify(attempt.headers).substring(0,40) + ' -> ' + attempt.url);
-    return axios.get(attempt.url, { headers: attempt.headers }).then(function(res) {
-      console.log('SUCCESS on attempt ' + (i+1) + ', status:', res.status);
-      return { valid: true };
-    }).catch(function(e) {
-      var status = e.response && e.response.status;
-      console.log('Attempt ' + (i+1) + ' failed, HTTP ' + status);
-      if (status === 401) return { valid: false, error: 'Token rejected (401). In Yodeck go to: Account Settings -> Advanced Settings -> API Tokens. Delete existing token, click Generate Token, assign Administrator role, then copy the new token.' };
-      if (status === 403) return { valid: false, error: 'Token valid but permission denied (403). Assign Administrator role to the token in Yodeck.' };
-      return tryNext(i + 1);
-    });
-  }
-
-  return tryNext(0);
 }
 
 module.exports = {
