@@ -4,10 +4,15 @@ const FormData = require('form-data');
 
 const BASE_URL = 'https://app.yodeck.com/api/v1';
 
+// Yodeck uses "Token <value>" format (Django REST Framework standard)
 function client(token) {
+  const cleanToken = token.trim();
   return axios.create({
     baseURL: BASE_URL,
-    headers: { Authorization: `Api-Key ${token}` }
+    headers: {
+      Authorization: `Token ${cleanToken}`,
+      'Content-Type': 'application/json'
+    }
   });
 }
 
@@ -18,7 +23,10 @@ async function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
   form.append('name', displayName || filename);
 
   const res = await client(token).post('/media/', form, {
-    headers: form.getHeaders(),
+    headers: {
+      ...form.getHeaders(),
+      Authorization: `Token ${token.trim()}`
+    },
     maxContentLength: Infinity,
     maxBodyLength: Infinity
   });
@@ -31,40 +39,27 @@ async function getScreens(token) {
   return res.data.results || res.data;
 }
 
-// Get a specific screen's current playlist
-async function getPlaylist(token, screenId) {
-  const res = await client(token).get(`/monitor/${screenId}/`);
-  return res.data;
-}
-
 // Add media to a screen's playlist
 async function addMediaToScreen(token, screenId, mediaId, duration) {
-  // Fetch current monitor details
   const monitorRes = await client(token).get(`/monitor/${screenId}/`);
   const monitor = monitorRes.data;
 
-  // Get or create a playlist
   let playlistId = monitor.default_playlist;
 
   if (!playlistId) {
-    // Create a new playlist if none exists
     const plRes = await client(token).post('/playlist/', {
       name: `${monitor.name} Playlist`,
       description: 'Auto-created by Signage Portal'
     });
     playlistId = plRes.data.id;
-
-    // Assign playlist to monitor
     await client(token).patch(`/monitor/${screenId}/`, {
       default_playlist: playlistId
     });
   }
 
-  // Fetch existing playlist items
   const plRes = await client(token).get(`/playlist/${playlistId}/`);
   const existingItems = plRes.data.playlistitem_set || [];
 
-  // Append new media item
   const newItem = {
     media: mediaId,
     duration: duration || 10,
@@ -78,13 +73,22 @@ async function addMediaToScreen(token, screenId, mediaId, duration) {
   return { playlistId, mediaId };
 }
 
-// Verify a token is valid
+// Verify a token — returns { valid, error } so we can show the real reason
 async function verifyToken(token) {
+  if (!token || !token.trim()) return { valid: false, error: 'No token provided' };
+
   try {
-    await client(token).get('/monitor/');
-    return true;
+    const res = await client(token).get('/monitor/');
+    return { valid: true };
   } catch (e) {
-    return false;
+    const status = e.response?.status;
+    const detail = e.response?.data?.detail || e.response?.data || e.message;
+    console.error(`Token verify failed — HTTP ${status}:`, detail);
+
+    if (status === 401) return { valid: false, error: 'Token rejected by Yodeck (401 Unauthorized). Check the token is correct and has a role assigned.' };
+    if (status === 403) return { valid: false, error: 'Token valid but lacks permission (403 Forbidden). Assign a higher role to the token in Yodeck.' };
+    if (status === 404) return { valid: false, error: 'API endpoint not found. Account may not have API access (requires Premium/Enterprise).' };
+    return { valid: false, error: `Error ${status}: ${JSON.stringify(detail)}` };
   }
 }
 

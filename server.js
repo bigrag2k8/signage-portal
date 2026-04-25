@@ -175,8 +175,8 @@ app.get('/admin/api/log', requireAdmin, (req, res) => res.json(db.getLog(100)));
 
 app.post('/admin/api/verify-token', requireAdmin, async (req, res) => {
   const { token } = req.body;
-  const valid = await yodeck.verifyToken(token);
-  res.json({ valid });
+  const result = await yodeck.verifyToken(token);
+  res.json(result);
 });
 
 // ── Static files (AFTER all routes) ──────────────────────
