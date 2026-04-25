@@ -29,14 +29,24 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
 }
 
 function getScreens(token) {
-  return makeClient(token).get('/monitor/').then(function(res) {
+  var api = makeClient(token);
+  return api.get('/screen/').then(function(res) {
     return res.data.results || res.data;
+  }).catch(function() {
+    return api.get('/monitor/').then(function(res) {
+      return res.data.results || res.data;
+    });
   });
 }
 
 function addMediaToScreen(token, screenId, mediaId, duration) {
   var api = makeClient(token);
-  return api.get('/monitor/' + screenId + '/').then(function(monitorRes) {
+  // Try /screen/ first, fall back to /monitor/
+  var screenEndpoint = '/screen/';
+  return api.get(screenEndpoint + screenId + '/').catch(function() {
+    screenEndpoint = '/monitor/';
+    return api.get(screenEndpoint + screenId + '/');
+  }).then(function(monitorRes) {
     var monitor = monitorRes.data;
     var playlistId = monitor.default_playlist;
 
@@ -47,7 +57,7 @@ function addMediaToScreen(token, screenId, mediaId, duration) {
           description: 'Auto-created by Signage Portal'
         }).then(function(plRes) {
           var newId = plRes.data.id;
-          return api.patch('/monitor/' + screenId + '/', {
+          return api.patch(screenEndpoint + screenId + '/', {
             default_playlist: newId
           }).then(function() { return newId; });
         });
@@ -73,24 +83,40 @@ function verifyToken(token) {
     return Promise.resolve({ valid: false, error: 'No token provided.' });
   }
   var cleanToken = token.trim();
-  console.log('Verifying token:', cleanToken.substring(0, 12) + '...');
-  console.log('Authorization header: Token ' + cleanToken.substring(0, 12) + '...');
-  console.log('URL:', BASE_URL + '/monitor/');
 
-  return axios.get(BASE_URL + '/monitor/', {
-    headers: { Authorization: 'Token ' + cleanToken }
-  }).then(function(res) {
-    console.log('SUCCESS, status:', res.status);
-    return { valid: true };
-  }).catch(function(e) {
-    var status = e.response && e.response.status;
-    var body = JSON.stringify(e.response && e.response.data);
-    console.log('Failed HTTP ' + status + ':', body);
-    if (status === 401) return { valid: false, error: 'Token rejected (401). Make sure you copied the full token including the label prefix. Format must be: mylabel:TOKENVALUE' };
-    if (status === 403) return { valid: false, error: 'Token valid but permission denied (403). Assign Administrator role when generating the token.' };
-    if (status === 404) return { valid: false, error: 'API endpoint not found (404). Check YODECK_BASE_URL in Railway variables is set to: https://abizz.yodeck.com/api/v1' };
-    return { valid: false, error: 'HTTP ' + status + ': ' + body };
-  });
+  // Try every combination of base path and endpoint
+  var attempts = [
+    'https://abizz.yodeck.com/api/v1/screen/',
+    'https://abizz.yodeck.com/api/v1/monitor/',
+    'https://abizz.yodeck.com/api/screen/',
+    'https://abizz.yodeck.com/api/monitor/',
+    'https://app.yodeck.com/api/v1/screen/',
+    'https://app.yodeck.com/api/v1/monitor/'
+  ];
+
+  function tryNext(i) {
+    if (i >= attempts.length) {
+      return Promise.resolve({ valid: false, error: 'Could not find Yodeck API endpoint. Please open a support ticket with Yodeck and ask: what is the correct REST API base URL for reseller account abizz.yodeck.com?' });
+    }
+    var url = attempts[i];
+    console.log('Trying URL ' + (i+1) + ': ' + url);
+    return axios.get(url, {
+      headers: { Authorization: 'Token ' + cleanToken }
+    }).then(function(res) {
+      console.log('SUCCESS at URL:', url, 'status:', res.status);
+      return { valid: true, apiUrl: url.replace(/\/(screen|monitor)\/$/, '') };
+    }).catch(function(e) {
+      var status = e.response && e.response.status;
+      console.log('URL ' + (i+1) + ' failed HTTP ' + status + ': ' + url);
+      // 401/403 means the URL exists but auth issue — stop and report
+      if (status === 401) return { valid: false, error: 'API found at ' + url + ' but token rejected (401). Check token format is label:value with Administrator role.' };
+      if (status === 403) return { valid: false, error: 'API found at ' + url + ' but permission denied (403). Assign Administrator role to the token in Yodeck.' };
+      // 404 means wrong URL — keep trying
+      return tryNext(i + 1);
+    });
+  }
+
+  return tryNext(0);
 }
 
 module.exports = {
