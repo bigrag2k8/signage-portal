@@ -72,16 +72,37 @@ function verifyToken(token) {
   if (!token || !token.trim()) {
     return Promise.resolve({ valid: false, error: 'No token provided.' });
   }
-  return makeClient(token).get('/monitor/').then(function() {
+  var cleanToken = token.trim();
+  console.log('Verifying token (first 8 chars):', cleanToken.substring(0, 8) + '...');
+  console.log('Auth header will be: Token ' + cleanToken.substring(0, 8) + '...');
+  console.log('Hitting URL:', BASE_URL + '/monitor/');
+
+  // Try both auth header formats
+  return axios.get(BASE_URL + '/monitor/', {
+    headers: { Authorization: 'Token ' + cleanToken }
+  }).then(function(res) {
+    console.log('SUCCESS with Token format, status:', res.status);
     return { valid: true };
-  }).catch(function(e) {
-    var status = e.response && e.response.status;
-    var detail = (e.response && e.response.data && e.response.data.detail) || e.message;
-    console.error('Token verify failed — HTTP ' + status + ':', detail);
-    if (status === 401) return { valid: false, error: 'Token rejected (401). Make sure the token has a role assigned in Yodeck.' };
-    if (status === 403) return { valid: false, error: 'Token valid but lacks permission (403). Assign Administrator role in Yodeck.' };
-    if (status === 404) return { valid: false, error: 'API not found (404). Account may need Premium/Enterprise plan.' };
-    return { valid: false, error: 'Error ' + status + ': ' + detail };
+  }).catch(function(e1) {
+    var s1 = e1.response && e1.response.status;
+    var d1 = JSON.stringify(e1.response && e1.response.data);
+    console.log('Token format failed, HTTP ' + s1 + ':', d1);
+
+    // Try Api-Key format as fallback
+    return axios.get(BASE_URL + '/monitor/', {
+      headers: { Authorization: 'Api-Key ' + cleanToken }
+    }).then(function(res) {
+      console.log('SUCCESS with Api-Key format, status:', res.status);
+      return { valid: true };
+    }).catch(function(e2) {
+      var s2 = e2.response && e2.response.status;
+      var d2 = JSON.stringify(e2.response && e2.response.data);
+      console.log('Api-Key format also failed, HTTP ' + s2 + ':', d2);
+      if (s2 === 401) return { valid: false, error: 'Token rejected (401 Unauthorized). In Yodeck: delete the token, generate a new one, and make sure to select a Role (Administrator) before clicking Generate.' };
+      if (s2 === 403) return { valid: false, error: 'Token valid but no permission (403). Set role to Administrator when generating the token in Yodeck.' };
+      if (s2 === 404) return { valid: false, error: 'API endpoint not found (404). Account may require Premium or Enterprise plan.' };
+      return { valid: false, error: 'HTTP ' + s2 + ': ' + d2 + ' | First attempt: HTTP ' + s1 + ': ' + d1 };
+    });
   });
 }
 
