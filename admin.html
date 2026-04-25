@@ -3,224 +3,281 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Publish Content — Signage Portal</title>
+<title>Admin Dashboard — Signage Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;--accent:#6366f1;--glow:rgba(99,102,241,0.25);--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171}
+:root{--bg:#080810;--surface:#11111a;--surface2:#16161f;--border:#1c1c2a;--accent:#f59e0b;--glow:rgba(245,158,11,0.2);--indigo:#6366f1;--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
-nav{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between}
+nav{position:sticky;top:0;z-index:100;background:rgba(8,8,16,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between}
 .nav-logo{font-family:'DM Serif Display',serif;font-size:18px;display:flex;align-items:center;gap:10px}
-.dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent)}
+.abadge{background:rgba(245,158,11,.15);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px;font-family:'DM Sans',sans-serif}
 .logout{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s}
 .logout:hover{border-color:var(--accent);color:var(--text)}
-main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:40px 24px 80px}
-.page-hdr{margin-bottom:36px}
-.page-hdr h1{font-family:'DM Serif Display',serif;font-size:32px;font-weight:400;margin-bottom:8px}
-.page-hdr p{color:var(--muted);font-size:15px}
-.steps{display:grid;gap:20px}
-.step{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px}
-.step-hdr{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.step-num{width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
-.step-title{font-size:16px;font-weight:600}
-.dropzone{border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface2)}
-.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(99,102,241,.05)}
-.dropzone svg{width:40px;height:40px;fill:var(--muted);margin-bottom:12px}
-.dropzone h3{font-size:16px;margin-bottom:6px}
-.dropzone p{font-size:13px;color:var(--muted)}
-.dropzone .cta{margin-top:8px;color:var(--accent);font-size:13px}
-.file-info{display:none;align-items:center;gap:14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:14px 18px}
-.file-info.show{display:flex}
-.file-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.file-icon svg{width:20px;height:20px;fill:white}
-.file-meta{flex:1}
-.file-name{font-size:14px;font-weight:500;word-break:break-all}
-.file-size{font-size:12px;color:var(--muted);margin-top:2px}
-.rm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;transition:color .2s}
-.rm-btn:hover{color:var(--error)}
+main{max-width:1100px;margin:0 auto;padding:36px 24px 80px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px}
+.stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.stat-val{font-family:'DM Serif Display',serif;font-size:28px}
+.tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid var(--border)}
+.tab{padding:10px 20px;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .2s,border-color .2s}
+.tab.active{color:var(--text);border-color:var(--accent)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.sec-hdr h2{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400}
+.btn-add{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#000;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.btn-add:hover{opacity:.88}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface2);border-bottom:1px solid var(--border)}
+td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.b-active{background:rgba(52,211,153,.12);color:var(--success);font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px}
+.b-inactive{background:rgba(248,113,113,.1);color:var(--error);font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px}
+.token-cell{font-family:monospace;font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.no-token{color:var(--error);font-size:12px}
+.act{display:flex;gap:6px}
+.btn-edit,.btn-del{background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.btn-edit:hover{border-color:var(--indigo);color:var(--text)}
+.btn-del:hover{border-color:var(--error);color:var(--error)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:32px;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-bottom:24px}
 .field{margin-bottom:16px}
 label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.05em;text-transform:uppercase}
-input[type=text],input[type=number]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
-.screens-loading{color:var(--muted);font-size:14px;text-align:center;padding:24px}
-.screens-err{color:var(--error);font-size:14px;padding:12px;background:rgba(248,113,113,.08);border-radius:8px;display:none}
-.screens-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-.screen-card{border:2px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .2s,background .2s;user-select:none}
-.screen-card:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.04)}
-.screen-card.sel{border-color:var(--accent);background:rgba(99,102,241,.1)}
-.s-status{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-bottom:8px}
-.s-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
-.s-dot.on{background:var(--success)}
-.s-name{font-size:14px;font-weight:500}
-.s-check{float:right;color:var(--accent);display:none}
-.screen-card.sel .s-check{display:inline}
-.pub-btn{width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer;transition:opacity .2s}
-.pub-btn:hover:not(:disabled){opacity:.9}
-.pub-btn:disabled{opacity:.5;cursor:not-allowed}
-.prog{height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0;transition:width .3s;margin-top:12px;display:none}
-#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-size:14px;display:flex;align-items:center;gap:10px;z-index:1000;transition:transform .35s cubic-bezier(.34,1.56,.64,1);min-width:280px;max-width:90vw}
+input[type=text],input[type=email],input[type=password],select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.tok-row{display:flex;gap:8px}
+.tok-row input{flex:1}
+.btn-verify{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:13px;padding:0 14px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'DM Sans',sans-serif}
+.btn-verify:hover{border-color:var(--success);color:var(--success)}
+.vresult{font-size:12px;margin-top:6px}
+.vok{color:var(--success)}
+.vfail{color:var(--error)}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.modal-foot{display:flex;gap:10px;margin-top:24px}
+.btn-save{flex:1;background:var(--accent);color:#000;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:11px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.btn-save:hover{opacity:.88}
+.btn-cancel{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 20px;border-radius:8px;cursor:pointer;transition:all .2s}
+.btn-cancel:hover{border-color:var(--text);color:var(--text)}
+.log-row{display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:16px;padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}
+.log-row:last-child{border-bottom:none}
+.log-hdr{background:var(--surface2);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.log-time{color:var(--muted);font-size:12px}
+.empty{text-align:center;padding:48px 24px;color:var(--muted);font-size:14px}
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;z-index:1000;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 #toast.show{transform:translateX(-50%) translateY(0)}
-#toast.success{border-color:rgba(52,211,153,.4)}
-#toast.error{border-color:rgba(248,113,113,.4)}
-.mt16{margin-top:16px}
 </style>
 </head>
 <body>
 <nav>
-  <div class="nav-logo"><div class="dot"></div>Signage Portal</div>
-  <a href="/logout" class="logout">Sign Out</a>
+  <div class="nav-logo">Signage Portal <span class="abadge">Admin</span></div>
+  <a href="/admin/logout" class="logout">Sign Out</a>
 </nav>
 <main>
-  <div class="page-hdr">
-    <h1>Publish Content</h1>
-    <p>Upload your design and send it live to your digital screens in seconds.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Total Clients</div><div class="stat-val" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label">Active Clients</div><div class="stat-val" id="s-active">—</div></div>
+    <div class="stat"><div class="stat-label">Publishes Today</div><div class="stat-val" id="s-today">—</div></div>
+    <div class="stat"><div class="stat-label">Total Publishes</div><div class="stat-val" id="s-log">—</div></div>
   </div>
-  <div class="steps">
-
-    <div class="step">
-      <div class="step-hdr"><div class="step-num">1</div><div class="step-title">Upload Your Design</div></div>
-      <input type="file" id="file-input" accept="image/*,video/mp4,application/pdf" style="display:none">
-      <div class="dropzone" id="dropzone">
-        <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-        <h3>Drop your file here</h3>
-        <p>JPG, PNG, GIF, MP4, PDF &middot; Up to 200MB</p>
-        <p class="cta">or click to browse</p>
-      </div>
-      <div class="file-info" id="file-info">
-        <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg></div>
-        <div class="file-meta"><div class="file-name" id="fname"></div><div class="file-size" id="fsize"></div></div>
-        <button class="rm-btn" id="rm-btn" title="Remove">x</button>
-      </div>
-      <div class="field mt16">
-        <label>Display Name (optional)</label>
-        <input type="text" id="display-name" placeholder="e.g. Summer Promo 2025">
-      </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('clients',this)">Clients</div>
+    <div class="tab" onclick="switchTab('log',this)">Activity Log</div>
+  </div>
+  <div class="tab-panel active" id="tab-clients">
+    <div class="sec-hdr">
+      <h2>Client Accounts</h2>
+      <button class="btn-add" onclick="openModal()">+ Add Client</button>
     </div>
-
-    <div class="step">
-      <div class="step-hdr"><div class="step-num">2</div><div class="step-title">Select Your Screens</div></div>
-      <div class="screens-loading" id="screens-loading">Loading your screens...</div>
-      <div class="screens-err" id="screens-err"></div>
-      <div class="screens-grid" id="screens-grid"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Yodeck Token</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="clients-tbody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+      </table>
     </div>
-
-    <div class="step">
-      <div class="step-hdr"><div class="step-num">3</div><div class="step-title">Set Duration &amp; Publish</div></div>
-      <div class="field">
-        <label>Display Duration (seconds)</label>
-        <input type="number" id="duration" value="10" min="1" max="3600" style="max-width:160px">
-      </div>
-      <button class="pub-btn" id="pub-btn">Publish to Screens</button>
-      <div class="prog" id="prog"></div>
+  </div>
+  <div class="tab-panel" id="tab-log">
+    <div class="sec-hdr"><h2>Activity Log</h2></div>
+    <div class="tbl-wrap">
+      <div class="log-row log-hdr"><div>Client</div><div>File</div><div>Screens</div><div>Published</div></div>
+      <div id="log-rows"><div class="empty">Loading...</div></div>
     </div>
-
   </div>
 </main>
 
-<div id="toast"><span id="toast-icon"></span><span id="toast-msg"></span></div>
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modal-title">Add Client</h3>
+    <input type="hidden" id="edit-id">
+    <div class="field"><label>Full Name</label><input type="text" id="f-name" placeholder="Acme Corp"></div>
+    <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="contact@acme.com"></div>
+    <div class="field"><label>Username</label><input type="text" id="f-username" placeholder="acme"></div>
+    <div class="field">
+      <label>Password <span id="pw-note" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></label>
+      <input type="text" id="f-password" placeholder="Set a strong password">
+    </div>
+    <div class="field">
+      <label>Yodeck API Token</label>
+      <div class="tok-row">
+        <input type="text" id="f-token" placeholder="Paste client Yodeck API token">
+        <button class="btn-verify" onclick="verifyToken()">Verify</button>
+      </div>
+      <div class="vresult" id="vresult"></div>
+      <div class="hint">Format: <strong>label:tokenvalue</strong> — e.g. if you named the token "MyPortal" and the value is "ABC123", enter: MyPortal:ABC123</div>
+    </div>
+    <div class="field">
+      <label>Assigned Screen IDs (optional)</label>
+      <input type="text" id="f-screens" placeholder="e.g. 1234,5678 — leave blank for all screens">
+      <div class="hint">Comma-separated Yodeck screen IDs. Leave blank to show all screens.</div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="f-active"><option value="1">Active</option><option value="0">Inactive</option></select>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-save" onclick="saveClient()">Save Client</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
-var selectedFile = null;
-var selectedScreens = [];
+var clients = [];
+var log = [];
 
-var dropzone = document.getElementById('dropzone');
-var fileInput = document.getElementById('file-input');
-var fileInfo = document.getElementById('file-info');
-
-dropzone.addEventListener('click', function(){ fileInput.click(); });
-fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); });
-
-dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('over'); });
-dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('over'); });
-dropzone.addEventListener('drop', function(e){
-  e.preventDefault(); dropzone.classList.remove('over');
-  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
-
-document.getElementById('rm-btn').addEventListener('click', function(){
-  selectedFile = null; fileInput.value = '';
-  dropzone.style.display = ''; fileInfo.classList.remove('show');
-});
-
-function handleFile(f){
-  selectedFile = f;
-  document.getElementById('fname').textContent = f.name;
-  document.getElementById('fsize').textContent = fmtBytes(f.size);
-  dropzone.style.display = 'none'; fileInfo.classList.add('show');
+function loadClients(){
+  fetch('/admin/api/clients').then(function(r){ return r.json(); }).then(function(data){
+    clients = data; renderClients(); updateStats();
+  });
 }
 
-function fmtBytes(b){
-  if(b < 1024) return b+' B';
-  if(b < 1048576) return (b/1024).toFixed(1)+' KB';
-  return (b/1048576).toFixed(1)+' MB';
+function loadLog(){
+  fetch('/admin/api/log').then(function(r){ return r.json(); }).then(function(data){
+    log = data; renderLog(); updateStats();
+  });
 }
 
-function loadScreens(){
-  fetch('/api/screens').then(function(r){ return r.json(); }).then(function(data){
-    var loadEl = document.getElementById('screens-loading');
-    var errEl = document.getElementById('screens-err');
-    var grid = document.getElementById('screens-grid');
-    loadEl.style.display = 'none';
-    if(data.error){ errEl.textContent = data.error; errEl.style.display = 'block'; return; }
-    var screens = data.screens || [];
-    if(!screens.length){ errEl.textContent = 'No screens found. Contact your account manager.'; errEl.style.display = 'block'; return; }
-    grid.innerHTML = screens.map(function(s){
-      return '<div class="screen-card" data-id="'+s.id+'">'
-        +'<div class="s-status"><div class="s-dot'+(s.online?' on':'')+'"></div>'+(s.online?'Online':'Offline')+'<span class="s-check"> \u2713</span></div>'
-        +'<div class="s-name">'+(s.name||'Screen '+s.id)+'</div>'
-        +'</div>';
-    }).join('');
-    grid.querySelectorAll('.screen-card').forEach(function(card){
-      card.addEventListener('click', function(){
-        card.classList.toggle('sel');
-        var id = String(card.dataset.id);
-        if(card.classList.contains('sel')){ selectedScreens.push(id); }
-        else{ selectedScreens = selectedScreens.filter(function(x){ return x !== id; }); }
-      });
+function renderClients(){
+  var tbody = document.getElementById('clients-tbody');
+  if(!clients.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No clients yet. Add your first client.</td></tr>'; return; }
+  tbody.innerHTML = clients.map(function(c){
+    var tok = c.yodeck_token ? '<span class="token-cell" title="'+c.yodeck_token+'">'+c.yodeck_token.substring(0,20)+'...</span>' : '<span class="no-token">No token set</span>';
+    return '<tr>'
+      +'<td><strong>'+c.name+'</strong></td>'
+      +'<td style="font-family:monospace;font-size:13px">'+c.username+'</td>'
+      +'<td style="color:var(--muted)">'+c.email+'</td>'
+      +'<td>'+tok+'</td>'
+      +'<td><span class="'+(c.active?'b-active':'b-inactive')+'">'+(c.active?'Active':'Inactive')+'</span></td>'
+      +'<td><div class="act"><button class="btn-edit" onclick="editClient('+c.id+')">Edit</button><button class="btn-del" onclick="delClient('+c.id+',\''+c.name+'\')">Delete</button></div></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderLog(){
+  var el = document.getElementById('log-rows');
+  if(!log.length){ el.innerHTML='<div class="empty">No publishes yet.</div>'; return; }
+  el.innerHTML = log.map(function(l){
+    return '<div class="log-row">'
+      +'<div>'+l.client_name+'</div>'
+      +'<div style="word-break:break-all">'+l.filename+'</div>'
+      +'<div style="color:var(--muted)">'+l.screen_names+'</div>'
+      +'<div class="log-time">'+new Date(l.published_at).toLocaleString()+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function updateStats(){
+  document.getElementById('s-total').textContent = clients.length;
+  document.getElementById('s-active').textContent = clients.filter(function(c){ return c.active; }).length;
+  document.getElementById('s-log').textContent = log.length;
+  var today = new Date().toDateString();
+  document.getElementById('s-today').textContent = log.filter(function(l){ return new Date(l.published_at).toDateString()===today; }).length;
+}
+
+function openModal(c){
+  document.getElementById('edit-id').value = c ? c.id : '';
+  document.getElementById('modal-title').textContent = c ? 'Edit Client' : 'Add Client';
+  document.getElementById('f-name').value = c ? c.name : '';
+  document.getElementById('f-email').value = c ? c.email : '';
+  document.getElementById('f-username').value = c ? c.username : '';
+  document.getElementById('f-password').value = '';
+  document.getElementById('f-token').value = c ? (c.yodeck_token||'') : '';
+  document.getElementById('f-screens').value = c ? JSON.parse(c.assigned_screens||'[]').join(',') : '';
+  document.getElementById('f-active').value = c ? (c.active?'1':'0') : '1';
+  document.getElementById('vresult').textContent = '';
+  document.getElementById('pw-note').textContent = c ? '(leave blank to keep existing)' : '';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function editClient(id){ openModal(clients.find(function(c){ return c.id===id; })); }
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('overlay').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+function saveClient(){
+  var id = document.getElementById('edit-id').value;
+  var screens = document.getElementById('f-screens').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var body = {
+    name: document.getElementById('f-name').value,
+    email: document.getElementById('f-email').value,
+    username: document.getElementById('f-username').value,
+    password: document.getElementById('f-password').value,
+    yodeck_token: document.getElementById('f-token').value,
+    assigned_screens: screens,
+    active: document.getElementById('f-active').value === '1'
+  };
+  var url = id ? '/admin/api/clients/'+id : '/admin/api/clients';
+  var method = id ? 'PUT' : 'POST';
+  fetch(url,{ method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(function(r){ return r.json(); }).then(function(data){
+      if(data.error){ showToast('Error: '+data.error); return; }
+      closeModal();
+      showToast(id ? 'Client updated!' : 'Client created! Welcome email sent.');
+      loadClients();
+    }).catch(function(){ showToast('Network error.'); });
+}
+
+function delClient(id, name){
+  if(!confirm('Delete client "'+name+'"? This cannot be undone.')) return;
+  fetch('/admin/api/clients/'+id,{ method:'DELETE' }).then(function(){ showToast('Client deleted.'); loadClients(); });
+}
+
+function verifyToken(){
+  var token = document.getElementById('f-token').value.trim();
+  if(!token) return;
+  var el = document.getElementById('vresult');
+  el.textContent = 'Verifying...'; el.className = 'vresult';
+  fetch('/admin/api/verify-token',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token}) })
+    .then(function(r){ return r.json(); }).then(function(data){
+      el.textContent = data.valid ? 'Token is valid and connected to Yodeck' : (data.error || 'Token invalid or expired');
+      el.className = 'vresult '+(data.valid?'vok':'vfail');
     });
-  }).catch(function(){ document.getElementById('screens-loading').textContent = 'Error loading screens. Please refresh.'; });
 }
 
-document.getElementById('pub-btn').addEventListener('click', function(){
-  if(!selectedFile) return showToast('Please select a file first.','error');
-  if(!selectedScreens.length) return showToast('Please select at least one screen.','error');
-  var btn = document.getElementById('pub-btn');
-  var prog = document.getElementById('prog');
-  btn.disabled = true; btn.textContent = 'Publishing...';
-  prog.style.display = 'block'; prog.style.width = '30%';
-  var form = new FormData();
-  form.append('file', selectedFile);
-  form.append('displayName', document.getElementById('display-name').value);
-  form.append('duration', document.getElementById('duration').value);
-  selectedScreens.forEach(function(id){ form.append('screenIds', id); });
-  prog.style.width = '60%';
-  fetch('/api/publish',{ method:'POST', body:form }).then(function(r){ return r.json(); }).then(function(data){
-    prog.style.width = '100%';
-    setTimeout(function(){ prog.style.display='none'; prog.style.width='0%'; },600);
-    if(data.success){
-      showToast(data.message,'success');
-      selectedFile=null; selectedScreens=[];
-      fileInput.value=''; fileInfo.classList.remove('show');
-      dropzone.style.display='';
-      document.getElementById('display-name').value='';
-      document.querySelectorAll('.screen-card.sel').forEach(function(c){ c.classList.remove('sel'); });
-    } else { showToast(data.error||'Something went wrong.','error'); }
-  }).catch(function(){ showToast('Network error. Please try again.','error'); })
-  .finally(function(){ btn.disabled=false; btn.textContent='Publish to Screens'; });
-});
+function switchTab(name, el){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='log') loadLog();
+}
 
 var toastTimer;
-function showToast(msg,type){
-  var t=document.getElementById('toast');
-  document.getElementById('toast-msg').textContent=msg;
-  document.getElementById('toast-icon').textContent=type==='success'?'✅':'⚠️';
-  t.className='show '+type;
+function showToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(function(){ t.className=''; },4500);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3500);
 }
 
-loadScreens();
+loadClients();
+loadLog();
 </script>
 </body>
 </html>
