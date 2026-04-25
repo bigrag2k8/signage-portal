@@ -1,37 +1,86 @@
-// db.js — SQLite database setup
-const Database = require('better-sqlite3');
+// db.js — Pure JS database using lowdb (no native compilation needed)
+const low = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
 const path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'portal.db');
-const db = new Database(DB_PATH);
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'portal.json');
+const adapter = new FileSync(DB_PATH);
+const db = low(adapter);
 
-// Enable WAL mode for better performance
-db.pragma('journal_mode = WAL');
+// Set defaults
+db.defaults({
+  clients: [],
+  publish_log: [],
+  _nextClientId: 1,
+  _nextLogId: 1
+}).write();
 
-// Create tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    yodeck_token TEXT,
-    assigned_screens TEXT DEFAULT '[]',
-    active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
+const dbHelper = {
 
-  CREATE TABLE IF NOT EXISTS publish_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_id INTEGER NOT NULL,
-    client_name TEXT NOT NULL,
-    filename TEXT NOT NULL,
-    screen_names TEXT NOT NULL,
-    published_at TEXT DEFAULT (datetime('now')),
-    status TEXT DEFAULT 'success',
-    FOREIGN KEY (client_id) REFERENCES clients(id)
-  );
-`);
+  // ── Clients ───────────────────────────────────────────────
+  getClient(id) {
+    return db.get('clients').find({ id: Number(id) }).value();
+  },
 
-module.exports = db;
+  getClientByUsername(username) {
+    return db.get('clients').find({ username, active: 1 }).value();
+  },
+
+  getAllClients() {
+    return db.get('clients').orderBy(['created_at'], ['desc']).value();
+  },
+
+  createClient({ name, email, username, password, yodeck_token, assigned_screens }) {
+    const id = db.get('_nextClientId').value();
+    const client = {
+      id,
+      name,
+      email,
+      username,
+      password,
+      yodeck_token: yodeck_token || null,
+      assigned_screens: JSON.stringify(assigned_screens || []),
+      active: 1,
+      created_at: new Date().toISOString()
+    };
+    db.get('clients').push(client).write();
+    db.set('_nextClientId', id + 1).write();
+    return { lastInsertRowid: id };
+  },
+
+  updateClient(id, { name, email, username, password, yodeck_token, assigned_screens, active }) {
+    const updates = {
+      name, email, username,
+      yodeck_token: yodeck_token || null,
+      assigned_screens: JSON.stringify(assigned_screens || []),
+      active: active ? 1 : 0
+    };
+    if (password) updates.password = password;
+    db.get('clients').find({ id: Number(id) }).assign(updates).write();
+  },
+
+  deleteClient(id) {
+    db.get('clients').remove({ id: Number(id) }).write();
+  },
+
+  // ── Publish log ───────────────────────────────────────────
+  logPublish({ client_id, client_name, filename, screen_names }) {
+    const id = db.get('_nextLogId').value();
+    db.get('publish_log').push({
+      id,
+      client_id: Number(client_id),
+      client_name,
+      filename,
+      screen_names,
+      published_at: new Date().toISOString(),
+      status: 'success'
+    }).write();
+    db.set('_nextLogId', id + 1).write();
+  },
+
+  getLog(limit = 100) {
+    return db.get('publish_log').orderBy(['published_at'], ['desc']).take(limit).value();
+  }
+};
+
+module.exports = dbHelper;

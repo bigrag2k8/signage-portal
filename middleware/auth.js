@@ -1,0 +1,10 @@
+// middleware/auth.js
+exports.requireClient = (req, res, next) => {
+  if (req.session && req.session.clientId) return next();
+  res.redirect('/login');
+};
+
+exports.requireAdmin = (req, res, next) => {
+  if (req.session && req.session.isAdmin) return next();
+  res.redirect('/admin/login');
+};
