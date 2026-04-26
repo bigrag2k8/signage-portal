@@ -51,9 +51,10 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
   var form = new FormData();
   form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
   form.append('name', displayName || filename);
-  // media_origin is required: object with type (image/video/audio/document) and source (local)
   var mediaType = getMediaType(mimetype);
-  form.append('media_origin', JSON.stringify({ type: mediaType, source: 'local' }));
+  // Yodeck requires media_origin as nested fields in multipart form
+  form.append('media_origin[type]', mediaType);
+  form.append('media_origin[source]', 'local');
 
 
   return axios.post(BASE_URL + '/media/', form, {
