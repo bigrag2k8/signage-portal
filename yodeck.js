@@ -87,12 +87,12 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
       }).then(function() {
         console.log('File uploaded to S3 successfully');
 
-        // Step 4: Confirm upload complete
+        // Step 4: Confirm upload - PUT /media/{id}/upload/complete
         console.log('Step 4: Confirming upload...');
-        return api.post('/media/' + mediaRecord.id + '/complete_upload/', {
+        return api.put('/media/' + mediaRecord.id + '/upload/complete', {
           upload_url: uploadUrl
-        }).then(function() {
-          console.log('Upload confirmed, media ready, id:', mediaRecord.id);
+        }).then(function(confirmRes) {
+          console.log('Upload confirmed:', confirmRes.data.details);
           return mediaRecord;
         });
       });
