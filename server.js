@@ -26,7 +26,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  store: new FileStore({ path: './sessions', ttl: 28800, retries: 0 }),
+  store: new FileStore({ path: process.env.SESSION_PATH || './sessions', ttl: 28800, retries: 0 }),
   cookie: { maxAge: 8 * 60 * 60 * 1000 }
 }));
 
