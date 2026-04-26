@@ -96,44 +96,42 @@ app.post('/api/publish', auth.requireClient, upload.single('file'), function(req
   var ids = Array.isArray(screenIds) ? screenIds : [screenIds];
   var token = client.yodeck_token;
 
+  // Step 1: Upload media
   yodeck.uploadMedia(token, file.buffer, file.originalname, file.mimetype, displayName || file.originalname)
     .then(function(media) {
-      var chain = Promise.resolve();
-      ids.forEach(function(screenId) {
-        chain = chain.then(function() {
-          return yodeck.addMediaToScreen(token, screenId, media.id, parseInt(duration) || 10);
+      // Step 2: Publish to all selected screens
+      return yodeck.publishToScreens(token, ids, media.id).then(function() {
+        return media;
+      });
+    })
+    .then(function(media) {
+      // Step 3: Resolve screen names for log
+      return yodeck.getScreens(token).then(function(allScreens) {
+        var nameMap = {};
+        allScreens.forEach(function(s) { nameMap[String(s.id)] = s.name; });
+        var resolvedNames = ids.map(function(id) { return nameMap[id] || id; }).join(', ');
+
+        db.logPublish({
+          client_id: client.id,
+          client_name: client.name,
+          filename: file.originalname,
+          screen_names: resolvedNames
         });
+
+        mailer.sendPublishNotification({
+          clientName: client.name,
+          clientEmail: client.email,
+          filename: file.originalname,
+          screenNames: resolvedNames,
+          publishedAt: new Date().toLocaleString()
+        }).catch(function(e) { console.warn('Email failed:', e.message); });
+
+        res.json({ success: true, message: '"' + (displayName || file.originalname) + '" is now live on: ' + resolvedNames });
       });
-      return chain.then(function() { return media; });
-    })
-    .then(function() {
-      return yodeck.getScreens(token);
-    })
-    .then(function(allScreens) {
-      var nameMap = {};
-      allScreens.forEach(function(s) { nameMap[String(s.id)] = s.name; });
-      var resolvedNames = ids.map(function(id) { return nameMap[id] || id; }).join(', ');
-
-      db.logPublish({
-        client_id: client.id,
-        client_name: client.name,
-        filename: file.originalname,
-        screen_names: resolvedNames
-      });
-
-      mailer.sendPublishNotification({
-        clientName: client.name,
-        clientEmail: client.email,
-        filename: file.originalname,
-        screenNames: resolvedNames,
-        publishedAt: new Date().toLocaleString()
-      }).catch(function(e) { console.warn('Email failed:', e.message); });
-
-      res.json({ success: true, message: '"' + (displayName || file.originalname) + '" published to: ' + resolvedNames });
     })
     .catch(function(err) {
-      console.error('Publish error:', err.message);
-      res.status(500).json({ error: 'Publish failed: ' + err.message });
+      console.error('Publish error:', err.response ? JSON.stringify(err.response.data) : err.message);
+      res.status(500).json({ error: 'Publish failed: ' + (err.response ? JSON.stringify(err.response.data) : err.message) });
     });
 });
 

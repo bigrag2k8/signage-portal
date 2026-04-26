@@ -1,120 +1,128 @@
+// yodeck.js — Yodeck API v2 (correct endpoints confirmed from API docs)
 var axios = require('axios');
 var FormData = require('form-data');
 
 var BASE_URL = 'https://app.yodeck.com/api/v2';
 
+// Auth header format: Token <label:value>
+// e.g. Token portal:Ru1MRfz5...
 function makeClient(token) {
   return axios.create({
     baseURL: BASE_URL,
     headers: {
-      Authorization: 'Token ' + token.trim()
+      Authorization: 'Token ' + token.trim(),
+      'Content-Type': 'application/json'
     }
   });
 }
 
-function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
-  var form = new FormData();
-  form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
-  form.append('name', displayName || filename);
-
-  return makeClient(token).post('/media/', form, {
-    headers: Object.assign({}, form.getHeaders(), {
-      Authorization: 'Token ' + token.trim()
-    }),
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity
-  }).then(function(res) {
-    return res.data;
-  });
-}
-
-function getScreens(token) {
-  return makeClient(token).get('/screens/').then(function(res) {
-    return res.data.results || res.data;
-  });
-}
-
-function addMediaToScreen(token, screenId, mediaId, duration) {
-  var api = makeClient(token);
-  // Try /screen/ first, fall back to /monitor/
-  var screenEndpoint = '/screens/';
-  return api.get(screenEndpoint + screenId + '/').catch(function() {
-    screenEndpoint = '/screens/';
-    return api.get(screenEndpoint + screenId + '/');
-  }).then(function(monitorRes) {
-    var monitor = monitorRes.data;
-    var playlistId = monitor.default_playlist;
-
-    var getOrCreatePlaylist = playlistId
-      ? Promise.resolve(playlistId)
-      : api.post('/playlist/', {
-          name: monitor.name + ' Playlist',
-          description: 'Auto-created by Signage Portal'
-        }).then(function(plRes) {
-          var newId = plRes.data.id;
-          return api.patch(screenEndpoint + screenId + '/', {
-            default_playlist: newId
-          }).then(function() { return newId; });
-        });
-
-    return getOrCreatePlaylist.then(function(pid) {
-      return api.get('/playlist/' + pid + '/').then(function(plRes) {
-        var existingItems = plRes.data.playlistitem_set || [];
-        var newItem = {
-          media: mediaId,
-          duration: duration || 10,
-          ordering: existingItems.length + 1
-        };
-        return api.patch('/playlist/' + pid + '/', {
-          playlistitem_set: existingItems.concat([newItem])
-        });
-      });
-    });
-  });
-}
-
+// ── Verify token ──────────────────────────────────────────
 function verifyToken(token) {
   if (!token || !token.trim()) {
     return Promise.resolve({ valid: false, error: 'No token provided.' });
   }
   var cleanToken = token.trim();
   console.log('Verifying token:', cleanToken.substring(0, 12) + '...');
-  console.log('URL:', BASE_URL + '/screens/');
 
-  var authHeader = 'Token ' + cleanToken;
-  console.log('Full Authorization header being sent:', authHeader.substring(0, 40) + '...');
-
-  return axios.get(BASE_URL + '/screens/', {
-    headers: { Authorization: authHeader }
-  }).then(function(res) {
-    console.log('SUCCESS, status:', res.status);
+  return makeClient(cleanToken).get('/screens/').then(function(res) {
+    console.log('Token verified OK, status:', res.status);
     return { valid: true };
-  }).catch(function(e1) {
-    console.log('Token prefix failed, trying without prefix...');
-    // Try sending the token value directly without "Token" prefix
-    return axios.get(BASE_URL + '/screens/', {
-      headers: { Authorization: cleanToken }
-    }).then(function(res) {
-      console.log('SUCCESS without Token prefix, status:', res.status);
-      return { valid: true };
-    }).catch(function(e2) {
-      // Log full response headers for debugging
-      console.log('Both attempts failed');
-      console.log('Attempt 1 status:', e1.response && e1.response.status);
-      console.log('Attempt 1 headers:', JSON.stringify(e1.response && e1.response.headers));
-      console.log('Attempt 2 status:', e2.response && e2.response.status);
-      var status = e1.response && e1.response.status;
-      if (status === 401) return { valid: false, error: 'Token rejected (401). Please verify in Yodeck: (1) token was generated inside the client account not the partner console, (2) a Role was selected, (3) the account has Premium or Enterprise plan.' };
-      if (status === 403) return { valid: false, error: 'Permission denied (403). Assign Administrator role to the token in Yodeck.' };
-      if (status === 404) return { valid: false, error: 'API endpoint not found (404).' };
-      return { valid: false, error: 'HTTP ' + status };
-    });
+  }).catch(function(e) {
+    var status = e.response && e.response.status;
+    console.log('Token verify failed, HTTP', status);
+    if (status === 401) return { valid: false, error: 'Token rejected (401). Format must be label:tokenvalue — e.g. portal:XXXXXXXXX. Make sure a Role was assigned when generating.' };
+    if (status === 403) return { valid: false, error: 'Permission denied (403). Assign Administrator role to the token in Yodeck.' };
+    return { valid: false, error: 'HTTP ' + status + ': Could not connect to Yodeck API.' };
+  });
+}
+
+// ── Get all screens ───────────────────────────────────────
+function getScreens(token) {
+  return makeClient(token).get('/screens/').then(function(res) {
+    return res.data.results || res.data;
+  });
+}
+
+// ── Get single screen with current content ────────────────
+function getScreen(token, screenId) {
+  return makeClient(token).get('/screens/' + screenId + '/').then(function(res) {
+    return res.data;
+  });
+}
+
+// ── Upload media file ─────────────────────────────────────
+function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
+  var form = new FormData();
+  form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
+  form.append('name', displayName || filename);
+
+  return axios.post(BASE_URL + '/media/', form, {
+    headers: Object.assign({}, form.getHeaders(), {
+      Authorization: 'Token ' + token.trim()
+    }),
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity
+  }).then(function(res) {
+    console.log('Media uploaded, id:', res.data.id);
+    return res.data;
+  });
+}
+
+// ── Publish media to screens ──────────────────────────────
+// Uses PATCH /screens/ with screen_content to assign media directly
+function publishToScreens(token, screenIds, mediaId) {
+  var objects = screenIds.map(function(id) {
+    return {
+      id: Number(id),
+      screen_content: {
+        source_id: Number(mediaId),
+        source_type: 'media'
+      }
+    };
+  });
+
+  console.log('Publishing media', mediaId, 'to screens:', screenIds);
+
+  return makeClient(token).patch('/screens/', {
+    objects: objects
+  }).then(function(res) {
+    console.log('Publish success:', res.status);
+    return res.data;
+  });
+}
+
+// ── Get current content on a screen ──────────────────────
+function getScreenContent(token, screenId) {
+  return makeClient(token).get('/screens/' + screenId + '/').then(function(res) {
+    var screen = res.data;
+    return {
+      id: screen.id,
+      name: screen.name,
+      content: screen.screen_content || null
+    };
+  });
+}
+
+// ── Remove content from screen (turn off) ────────────────
+function clearScreen(token, screenId) {
+  return makeClient(token).patch('/screens/', {
+    objects: [{
+      id: Number(screenId),
+      screen_content: {
+        source_type: 'turned_off'
+      }
+    }]
+  }).then(function(res) {
+    return res.data;
   });
 }
 
 module.exports = {
-  uploadMedia: uploadMedia,
+  verifyToken: verifyToken,
   getScreens: getScreens,
-  addMediaToScreen: addMediaToScreen,
-  verifyToken: verifyToken
+  getScreen: getScreen,
+  uploadMedia: uploadMedia,
+  publishToScreens: publishToScreens,
+  getScreenContent: getScreenContent,
+  clearScreen: clearScreen
 };
