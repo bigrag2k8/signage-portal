@@ -126,8 +126,15 @@ function assignPlaylistToScreens(token, screenIds, playlistId) {
       }
     };
   });
-  return makeClient(token).put('/screens/', { objects: objects }).then(function(res) {
-    return res.data;
+  // Update each screen individually via PATCH /screens/{id}/
+  var api = makeClient(token);
+  return Promise.all(screenIds.map(function(id) {
+    console.log('Assigning playlist', playlistId, 'to screen', id);
+    return api.patch('/screens/' + id + '/', {
+      screen_content: { source_id: Number(playlistId), source_type: 'playlist' }
+    });
+  })).then(function(results) {
+    return results[0] && results[0].data;
   });
 }
 
@@ -157,6 +164,7 @@ function manageScreenPlaylist(token, screenId, media, duration) {
     var screen = res.data;
     var content = screen.screen_content;
 
+    console.log('Screen', screenId, 'content:', JSON.stringify(content));
     // If screen already has a playlist, add to it
     if (content && content.source_type === 'playlist' && content.source_id) {
       return api.get('/playlists/' + content.source_id + '/').then(function(plRes) {
@@ -168,7 +176,7 @@ function manageScreenPlaylist(token, screenId, media, duration) {
           duration: duration || 10,
           priority: existingItems.length + 1
         };
-        return api.put('/playlists/' + playlist.id + '/', {
+        return api.patch('/playlists/' + playlist.id + '/', {
           items: existingItems.concat([newItem])
         }).then(function() {
           console.log('Added media', media.id, 'to existing playlist', playlist.id);
@@ -184,11 +192,8 @@ function manageScreenPlaylist(token, screenId, media, duration) {
       items: items
     }).then(function(plRes) {
       var newPlaylist = plRes.data;
-      return api.put('/screens/', {
-        objects: [{
-          id: Number(screenId),
-          screen_content: { source_id: newPlaylist.id, source_type: 'playlist' }
-        }]
+      return api.patch('/screens/' + screenId + '/', {
+        screen_content: { source_id: newPlaylist.id, source_type: 'playlist' }
       }).then(function() {
         console.log('Created playlist', newPlaylist.id, 'for screen', screenId);
         return { screenId: screenId, playlistId: newPlaylist.id, action: 'created' };
@@ -226,7 +231,7 @@ function removeItemFromPlaylist(token, playlistId, mediaId) {
     }).map(function(item, idx) {
       return Object.assign({}, item, { priority: idx + 1 });
     });
-    return api.put('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
+    return api.patch('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
       return r.data;
     });
   });
