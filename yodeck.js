@@ -68,9 +68,10 @@ function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
     var mediaRecord = res.data;
     console.log('Media record created, id:', mediaRecord.id);
 
-    // Step 2: Get S3 pre-signed upload URL
+    // Step 2: Get S3 pre-signed upload URL - try multiple endpoint names
     console.log('Step 2: Getting S3 upload URL for media', mediaRecord.id);
-    return api.get('/media/' + mediaRecord.id + '/upload_url/').then(function(urlRes) {
+    // Confirmed endpoint from API docs: GET /media/{id}/upload (no trailing slash)
+    return api.get('/media/' + mediaRecord.id + '/upload').then(function(urlRes) {
       var uploadUrl = urlRes.data.upload_url;
       console.log('Got upload URL:', uploadUrl.substring(0, 60) + '...');
 
