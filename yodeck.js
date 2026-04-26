@@ -1,4 +1,4 @@
-// yodeck.js — Yodeck API v2 with full playlist management
+// yodeck.js — Yodeck API v2
 var axios = require('axios');
 var FormData = require('form-data');
 
@@ -36,7 +36,7 @@ function getScreens(token) {
   });
 }
 
-// ── Upload media file ─────────────────────────────────────
+// ── Detect media type from mimetype ──────────────────────
 function getMediaType(mimetype) {
   if (mimetype.startsWith('image/')) return 'image';
   if (mimetype.startsWith('video/')) return 'video';
@@ -47,56 +47,58 @@ function getMediaType(mimetype) {
   return 'image';
 }
 
+// ── Upload media file ─────────────────────────────────────
+// Yodeck requires media_origin as a JSON string field in multipart form
 function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
   var mediaType = getMediaType(mimetype);
   var cleanToken = token.trim();
+  var api = makeClient(cleanToken);
 
-  // Step 1: Create the media record with metadata as JSON
-  return axios.post(BASE_URL + '/media/', {
+  console.log('Step 1: Creating media record, type:', mediaType, 'name:', displayName || filename);
+
+  // Step 1: Create media record (single object, not bulk)
+  return api.post('/media/', {
     name: displayName || filename,
     media_origin: {
       type: mediaType,
       source: 'local'
-    }
-  }, {
-    headers: {
-      Authorization: 'Token ' + cleanToken,
-      'Content-Type': 'application/json'
-    }
+    },
+    default_duration: 10
   }).then(function(res) {
-    var mediaId = res.data.id;
-    console.log('Media record created, id:', mediaId);
+    var mediaRecord = res.data;
+    console.log('Media record created, id:', mediaRecord.id);
 
-    // Step 2: Upload the actual file to the media record
-    var form = new FormData();
-    form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
+    // Step 2: Get S3 pre-signed upload URL
+    console.log('Step 2: Getting S3 upload URL for media', mediaRecord.id);
+    return api.get('/media/' + mediaRecord.id + '/upload_url/').then(function(urlRes) {
+      var uploadUrl = urlRes.data.upload_url;
+      console.log('Got upload URL:', uploadUrl.substring(0, 60) + '...');
 
-    return axios.post(BASE_URL + '/media/' + mediaId + '/upload/', form, {
-      headers: Object.assign({}, form.getHeaders(), {
-        Authorization: 'Token ' + cleanToken
-      }),
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity
-    }).then(function() {
-      console.log('File uploaded to media', mediaId);
-      return res.data;
-    }).catch(function(uploadErr) {
-      // If separate upload endpoint doesn't exist, try patching the file directly
-      console.log('Separate upload failed, trying multipart patch...');
-      var form2 = new FormData();
-      form2.append('file', fileBuffer, { filename: filename, contentType: mimetype });
-      return axios.patch(BASE_URL + '/media/' + mediaId + '/', form2, {
-        headers: Object.assign({}, form2.getHeaders(), {
-          Authorization: 'Token ' + cleanToken
-        }),
+      // Step 3: Upload file directly to S3
+      console.log('Step 3: Uploading file to S3...');
+      return axios.put(uploadUrl, fileBuffer, {
+        headers: {
+          'Content-Type': mimetype,
+          'Content-Length': fileBuffer.length
+        },
         maxContentLength: Infinity,
         maxBodyLength: Infinity
       }).then(function() {
-        return res.data;
+        console.log('File uploaded to S3 successfully');
+
+        // Step 4: Confirm upload complete
+        console.log('Step 4: Confirming upload...');
+        return api.post('/media/' + mediaRecord.id + '/complete_upload/', {
+          upload_url: uploadUrl
+        }).then(function() {
+          console.log('Upload confirmed, media ready, id:', mediaRecord.id);
+          return mediaRecord;
+        });
       });
     });
   });
 }
+
 
 // ── Get all playlists ─────────────────────────────────────
 function getPlaylists(token) {
@@ -112,26 +114,6 @@ function getPlaylist(token, playlistId) {
   });
 }
 
-// ── Create a new playlist ─────────────────────────────────
-function createPlaylist(token, name, items) {
-  return makeClient(token).post('/playlists/', {
-    name: name,
-    items: items || []
-  }).then(function(res) {
-    console.log('Playlist created, id:', res.data.id);
-    return res.data;
-  });
-}
-
-// ── Update playlist items (add/remove/reorder) ────────────
-function updatePlaylist(token, playlistId, items) {
-  return makeClient(token).patch('/playlists/' + playlistId + '/', {
-    items: items
-  }).then(function(res) {
-    return res.data;
-  });
-}
-
 // ── Assign playlist to screens ────────────────────────────
 function assignPlaylistToScreens(token, screenIds, playlistId) {
   var objects = screenIds.map(function(id) {
@@ -143,54 +125,26 @@ function assignPlaylistToScreens(token, screenIds, playlistId) {
       }
     };
   });
-
   return makeClient(token).patch('/screens/', { objects: objects }).then(function(res) {
-    console.log('Playlist', playlistId, 'assigned to screens:', screenIds);
     return res.data;
   });
 }
 
-// ── Assign media directly to screens ─────────────────────
-function assignMediaToScreens(token, screenIds, mediaId) {
-  var objects = screenIds.map(function(id) {
-    return {
-      id: Number(id),
-      screen_content: {
-        source_id: Number(mediaId),
-        source_type: 'media'
-      }
-    };
-  });
-
-  return makeClient(token).patch('/screens/', { objects: objects }).then(function(res) {
-    console.log('Media', mediaId, 'assigned to screens:', screenIds);
-    return res.data;
-  });
-}
-
-// ── Full publish flow: upload + add to playlist + assign ──
-// If screen already has a portal-managed playlist, add to it.
-// Otherwise create a new playlist and assign it.
+// ── Full publish: upload media + add to playlist ──────────
 function publishToScreens(token, screenIds, fileBuffer, filename, mimetype, displayName, duration) {
-  var mediaObj;
-
-  // Step 1: Upload the media
   return uploadMedia(token, fileBuffer, filename, mimetype, displayName).then(function(media) {
-    mediaObj = media;
-
-    // Step 2: For each screen, get current content and manage playlist
     var chain = Promise.resolve([]);
     screenIds.forEach(function(screenId) {
       chain = chain.then(function(results) {
-        return manageScreenPlaylist(token, screenId, mediaObj, duration).then(function(result) {
+        return manageScreenPlaylist(token, screenId, media, duration).then(function(result) {
           results.push(result);
           return results;
         });
       });
     });
-    return chain;
-  }).then(function(results) {
-    return { media: mediaObj, results: results };
+    return chain.then(function(results) {
+      return { media: media, results: results };
+    });
   });
 }
 
@@ -202,53 +156,41 @@ function manageScreenPlaylist(token, screenId, media, duration) {
     var screen = res.data;
     var content = screen.screen_content;
 
-    // If screen already has a playlist assigned, add to it
+    // If screen already has a playlist, add to it
     if (content && content.source_type === 'playlist' && content.source_id) {
       return api.get('/playlists/' + content.source_id + '/').then(function(plRes) {
         var playlist = plRes.data;
         var existingItems = playlist.items || [];
-
-        // Build new items array with the new media appended
         var newItem = {
           id: media.id,
           type: 'media',
           duration: duration || 10,
           priority: existingItems.length + 1
         };
-
-        var updatedItems = existingItems.concat([newItem]);
-
         return api.patch('/playlists/' + playlist.id + '/', {
-          items: updatedItems
+          items: existingItems.concat([newItem])
         }).then(function() {
-          console.log('Added media', media.id, 'to existing playlist', playlist.id, 'on screen', screenId);
-          return { screenId: screenId, playlistId: playlist.id, action: 'added_to_existing' };
+          console.log('Added media', media.id, 'to existing playlist', playlist.id);
+          return { screenId: screenId, playlistId: playlist.id, action: 'added' };
         });
       });
     }
 
-    // No playlist — create a new one and assign it
-    var newPlaylistName = 'Portal Playlist - Screen ' + screenId;
-    var items = [{
-      id: media.id,
-      type: 'media',
-      duration: duration || 10,
-      priority: 1
-    }];
-
-    return api.post('/playlists/', { name: newPlaylistName, items: items }).then(function(plRes) {
+    // No playlist — create one and assign it
+    var items = [{ id: media.id, type: 'media', duration: duration || 10, priority: 1 }];
+    return api.post('/playlists/', {
+      name: 'Portal Playlist - Screen ' + screenId,
+      items: items
+    }).then(function(plRes) {
       var newPlaylist = plRes.data;
       return api.patch('/screens/', {
         objects: [{
           id: Number(screenId),
-          screen_content: {
-            source_id: newPlaylist.id,
-            source_type: 'playlist'
-          }
+          screen_content: { source_id: newPlaylist.id, source_type: 'playlist' }
         }]
       }).then(function() {
-        console.log('Created playlist', newPlaylist.id, 'and assigned to screen', screenId);
-        return { screenId: screenId, playlistId: newPlaylist.id, action: 'created_new' };
+        console.log('Created playlist', newPlaylist.id, 'for screen', screenId);
+        return { screenId: screenId, playlistId: newPlaylist.id, action: 'created' };
       });
     });
   });
@@ -256,15 +198,14 @@ function manageScreenPlaylist(token, screenId, media, duration) {
 
 // ── Get screen's current playlist items ───────────────────
 function getScreenPlaylist(token, screenId) {
-  return makeClient(token).get('/screens/' + screenId + '/').then(function(res) {
+  var api = makeClient(token);
+  return api.get('/screens/' + screenId + '/').then(function(res) {
     var screen = res.data;
     var content = screen.screen_content;
-
     if (!content || content.source_type !== 'playlist' || !content.source_id) {
       return { screenId: screenId, screenName: screen.name, playlistId: null, items: [] };
     }
-
-    return makeClient(token).get('/playlists/' + content.source_id + '/').then(function(plRes) {
+    return api.get('/playlists/' + content.source_id + '/').then(function(plRes) {
       return {
         screenId: screenId,
         screenName: screen.name,
@@ -275,22 +216,17 @@ function getScreenPlaylist(token, screenId) {
   });
 }
 
-// ── Remove a media item from a screen's playlist ──────────
+// ── Remove an item from a playlist ───────────────────────
 function removeItemFromPlaylist(token, playlistId, mediaId) {
-  return makeClient(token).get('/playlists/' + playlistId + '/').then(function(res) {
-    var items = res.data.items || [];
-    var filtered = items.filter(function(item) {
+  var api = makeClient(token);
+  return api.get('/playlists/' + playlistId + '/').then(function(res) {
+    var items = (res.data.items || []).filter(function(item) {
       return String(item.id) !== String(mediaId);
-    });
-    // Re-assign priorities
-    filtered = filtered.map(function(item, idx) {
+    }).map(function(item, idx) {
       return Object.assign({}, item, { priority: idx + 1 });
     });
-
-    return makeClient(token).patch('/playlists/' + playlistId + '/', {
-      items: filtered
-    }).then(function(plRes) {
-      return plRes.data;
+    return api.patch('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
+      return r.data;
     });
   });
 }
@@ -299,12 +235,6 @@ module.exports = {
   verifyToken: verifyToken,
   getScreens: getScreens,
   uploadMedia: uploadMedia,
-  getPlaylists: getPlaylists,
-  getPlaylist: getPlaylist,
-  createPlaylist: createPlaylist,
-  updatePlaylist: updatePlaylist,
-  assignPlaylistToScreens: assignPlaylistToScreens,
-  assignMediaToScreens: assignMediaToScreens,
   publishToScreens: publishToScreens,
   getScreenPlaylist: getScreenPlaylist,
   removeItemFromPlaylist: removeItemFromPlaylist
