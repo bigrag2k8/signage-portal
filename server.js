@@ -95,17 +95,10 @@ app.post('/api/publish', auth.requireClient, upload.single('file'), function(req
 
   var ids = Array.isArray(screenIds) ? screenIds : [screenIds];
   var token = client.yodeck_token;
+  var dur = parseInt(duration) || 10;
 
-  // Step 1: Upload media
-  yodeck.uploadMedia(token, file.buffer, file.originalname, file.mimetype, displayName || file.originalname)
-    .then(function(media) {
-      // Step 2: Publish to all selected screens
-      return yodeck.publishToScreens(token, ids, media.id).then(function() {
-        return media;
-      });
-    })
-    .then(function(media) {
-      // Step 3: Resolve screen names for log
+  yodeck.publishToScreens(token, ids, file.buffer, file.originalname, file.mimetype, displayName || file.originalname, dur)
+    .then(function(result) {
       return yodeck.getScreens(token).then(function(allScreens) {
         var nameMap = {};
         allScreens.forEach(function(s) { nameMap[String(s.id)] = s.name; });
@@ -126,7 +119,7 @@ app.post('/api/publish', auth.requireClient, upload.single('file'), function(req
           publishedAt: new Date().toLocaleString()
         }).catch(function(e) { console.warn('Email failed:', e.message); });
 
-        res.json({ success: true, message: '"' + (displayName || file.originalname) + '" is now live on: ' + resolvedNames });
+        res.json({ success: true, message: '"' + (displayName || file.originalname) + '" added to playlist on: ' + resolvedNames });
       });
     })
     .catch(function(err) {
@@ -209,6 +202,34 @@ app.get('/admin/api/log', auth.requireAdmin, function(req, res) {
 app.post('/admin/api/verify-token', auth.requireAdmin, function(req, res) {
   yodeck.verifyToken(req.body.token).then(function(result) {
     res.json(result);
+  });
+});
+
+// ── Playlist management routes ────────────────────────────
+
+// Get playlist for a specific screen
+app.get('/api/playlist/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) {
+    return res.status(400).json({ error: 'No Yodeck token configured.' });
+  }
+  yodeck.getScreenPlaylist(client.yodeck_token, req.params.screenId).then(function(data) {
+    res.json(data);
+  }).catch(function(err) {
+    res.status(500).json({ error: err.message });
+  });
+});
+
+// Remove an item from a playlist
+app.delete('/api/playlist/:playlistId/item/:mediaId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) {
+    return res.status(400).json({ error: 'No Yodeck token configured.' });
+  }
+  yodeck.removeItemFromPlaylist(client.yodeck_token, req.params.playlistId, req.params.mediaId).then(function() {
+    res.json({ success: true });
+  }).catch(function(err) {
+    res.status(500).json({ error: err.message });
   });
 });
 
