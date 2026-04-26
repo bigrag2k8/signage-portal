@@ -126,7 +126,7 @@ function assignPlaylistToScreens(token, screenIds, playlistId) {
       }
     };
   });
-  return makeClient(token).patch('/screens/', { objects: objects }).then(function(res) {
+  return makeClient(token).put('/screens/', { objects: objects }).then(function(res) {
     return res.data;
   });
 }
@@ -168,7 +168,7 @@ function manageScreenPlaylist(token, screenId, media, duration) {
           duration: duration || 10,
           priority: existingItems.length + 1
         };
-        return api.patch('/playlists/' + playlist.id + '/', {
+        return api.put('/playlists/' + playlist.id + '/', {
           items: existingItems.concat([newItem])
         }).then(function() {
           console.log('Added media', media.id, 'to existing playlist', playlist.id);
@@ -184,7 +184,7 @@ function manageScreenPlaylist(token, screenId, media, duration) {
       items: items
     }).then(function(plRes) {
       var newPlaylist = plRes.data;
-      return api.patch('/screens/', {
+      return api.put('/screens/', {
         objects: [{
           id: Number(screenId),
           screen_content: { source_id: newPlaylist.id, source_type: 'playlist' }
@@ -226,7 +226,7 @@ function removeItemFromPlaylist(token, playlistId, mediaId) {
     }).map(function(item, idx) {
       return Object.assign({}, item, { priority: idx + 1 });
     });
-    return api.patch('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
+    return api.put('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
       return r.data;
     });
   });
