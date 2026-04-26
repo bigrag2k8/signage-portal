@@ -48,24 +48,53 @@ function getMediaType(mimetype) {
 }
 
 function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
-  var form = new FormData();
-  form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
-  form.append('name', displayName || filename);
   var mediaType = getMediaType(mimetype);
-  // Yodeck requires media_origin as nested fields in multipart form
-  form.append('media_origin[type]', mediaType);
-  form.append('media_origin[source]', 'local');
+  var cleanToken = token.trim();
 
-
-  return axios.post(BASE_URL + '/media/', form, {
-    headers: Object.assign({}, form.getHeaders(), {
-      Authorization: 'Token ' + token.trim()
-    }),
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity
+  // Step 1: Create the media record with metadata as JSON
+  return axios.post(BASE_URL + '/media/', {
+    name: displayName || filename,
+    media_origin: {
+      type: mediaType,
+      source: 'local'
+    }
+  }, {
+    headers: {
+      Authorization: 'Token ' + cleanToken,
+      'Content-Type': 'application/json'
+    }
   }).then(function(res) {
-    console.log('Media uploaded, id:', res.data.id, 'name:', res.data.name);
-    return res.data;
+    var mediaId = res.data.id;
+    console.log('Media record created, id:', mediaId);
+
+    // Step 2: Upload the actual file to the media record
+    var form = new FormData();
+    form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
+
+    return axios.post(BASE_URL + '/media/' + mediaId + '/upload/', form, {
+      headers: Object.assign({}, form.getHeaders(), {
+        Authorization: 'Token ' + cleanToken
+      }),
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    }).then(function() {
+      console.log('File uploaded to media', mediaId);
+      return res.data;
+    }).catch(function(uploadErr) {
+      // If separate upload endpoint doesn't exist, try patching the file directly
+      console.log('Separate upload failed, trying multipart patch...');
+      var form2 = new FormData();
+      form2.append('file', fileBuffer, { filename: filename, contentType: mimetype });
+      return axios.patch(BASE_URL + '/media/' + mediaId + '/', form2, {
+        headers: Object.assign({}, form2.getHeaders(), {
+          Authorization: 'Token ' + cleanToken
+        }),
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      }).then(function() {
+        return res.data;
+      });
+    });
   });
 }
 
