@@ -37,10 +37,24 @@ function getScreens(token) {
 }
 
 // ── Upload media file ─────────────────────────────────────
+function getMediaType(mimetype) {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('video/')) return 'video';
+  if (mimetype.startsWith('audio/')) return 'audio';
+  if (mimetype === 'application/pdf') return 'document';
+  if (mimetype.includes('powerpoint') || mimetype.includes('presentation')) return 'document';
+  if (mimetype.includes('word') || mimetype.includes('excel')) return 'document';
+  return 'image';
+}
+
 function uploadMedia(token, fileBuffer, filename, mimetype, displayName) {
   var form = new FormData();
   form.append('file', fileBuffer, { filename: filename, contentType: mimetype });
   form.append('name', displayName || filename);
+  // media_origin is required: object with type (image/video/audio/document) and source (local)
+  var mediaType = getMediaType(mimetype);
+  form.append('media_origin', JSON.stringify({ type: mediaType, source: 'local' }));
+
 
   return axios.post(BASE_URL + '/media/', form, {
     headers: Object.assign({}, form.getHeaders(), {
