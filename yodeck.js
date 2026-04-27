@@ -243,8 +243,20 @@ function updatePlaylist(token, playlistId, items) {
   });
 }
 
+// Push content to a specific screen
+function pushToScreen(token, screenId) {
+  console.log('Pushing content to screen:', screenId);
+  return makeClient(token).post('/screens/push', {
+    filter_screens: [Number(screenId)]
+  }).then(function(res) {
+    console.log('Push response:', JSON.stringify(res.data));
+    return res.data;
+  });
+}
+
 module.exports = {
   updatePlaylist: updatePlaylist,
+  pushToScreen: pushToScreen,
   verifyToken: verifyToken,
   getScreens: getScreens,
   uploadMedia: uploadMedia,

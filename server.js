@@ -245,6 +245,18 @@ app.delete('/api/playlist/:playlistId/item/:mediaId', auth.requireClient, functi
   });
 });
 
+// Push content to a specific screen
+app.post('/api/push/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No token.' });
+  yodeck.pushToScreen(client.yodeck_token, req.params.screenId).then(function() {
+    res.json({ success: true });
+  }).catch(function(err) {
+    console.error('Push error:', err.response ? JSON.stringify(err.response.data) : err.message);
+    res.status(500).json({ error: err.message });
+  });
+});
+
 // Update playlist items (for duration changes)
 app.post('/api/playlist/:playlistId/update', auth.requireClient, function(req, res) {
   var client = db.getClient(req.session.clientId);
