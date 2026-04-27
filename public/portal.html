@@ -248,9 +248,12 @@ function loadScreens() {
       sidebar.innerHTML = '<div class="screens-loading-msg">No screens found.</div>';
       return;
     }
-    sidebar.innerHTML = allScreens.map(function(s) {
-      return '<button class="screen-btn" id="sbtn-' + s.id + '" onclick="selectScreen(' + s.id + ',\'' + escHtml(s.name) + '\',' + (s.online ? 'true' : 'false') + ')">'
-        + '<div class="screen-status-dot' + (s.online ? ' online' : '') + '"></div>'
+        sidebar.innerHTML = allScreens.map(function(s) {
+      var statusColor = s.online ? 'var(--success)' : 'var(--error)';
+      if (s.updating) statusColor = 'var(--warning)';
+      var ss = encodeURIComponent(s.screenshot_url || '');
+      return '<button class="screen-btn" id="sbtn-' + s.id + '" onclick="selectScreen(' + s.id + ',\'' + escHtml(s.name) + '',' + s.online + ',\'' + ss + '')'  + '">'
+        + '<div class="screen-status-dot" style="background:' + statusColor + ';box-shadow:0 0 6px ' + statusColor + '"></div>'
         + '<span class="screen-name-text">' + escHtml(s.name || 'Screen ' + s.id) + '</span>'
         + '<span class="slide-count" id="count-' + s.id + '">...</span>'
         + '</button>';
@@ -274,6 +277,7 @@ function loadSlideCount(screenId) {
 
 // ── Select a screen ───────────────────────────────────────
 function selectScreen(id, name, online, screenshotUrl) {
+  screenshotUrl = screenshotUrl ? decodeURIComponent(screenshotUrl) : '';
   currentScreenId = id;
   // Update sidebar active state
   document.querySelectorAll('.screen-btn').forEach(function(b) { b.classList.remove('active'); });
