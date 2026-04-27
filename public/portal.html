@@ -212,9 +212,10 @@ input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
       <label>Display Name (optional)</label>
       <input type="text" id="display-name" placeholder="e.g. Summer Promo 2025">
     </div>
-    <div class="field" style="margin-top:0">
+    <div class="field" id="duration-field" style="margin-top:0">
       <label>Duration (seconds)</label>
       <input type="number" id="duration" value="10" min="1" max="3600" style="max-width:120px">
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">How long this slide shows before moving to the next</div>
     </div>
 
     <div class="modal-footer">
@@ -347,13 +348,22 @@ function renderPlaylist(items) {
         + '<div class="slide-name">' + escHtml(item.name || 'Slide ' + (idx + 1)) + '</div>'
         + '<div class="slide-meta">' + typeLabel(item) + '</div>'
         + '</div>'
-        + '<div class="slide-actions">'
-        + '<div style="text-align:center">'
-        + '<input class="duration-input" type="number" value="' + dur + '" min="1" max="3600" onchange="updateDuration(' + item.id + ', this.value)">'
-        + '<div class="duration-label">seconds</div>'
+      var isVideo = item.media_origin && item.media_origin.type === 'video';
+      var durationHtml = isVideo
+        ? '<div style="text-align:center"><div style="font-size:13px;font-weight:600;color:var(--text)">' + formatDur(dur) + '</div><div class="duration-label">video length</div></div>'
+        : '<div style="text-align:center"><input class="duration-input" type="number" value="' + dur + '" min="1" max="3600" onchange="updateDuration(' + item.id + ', this.value)"><div class="duration-label">seconds</div></div>';
+        return '<div class="slide-item" id="slide-' + item.id + '">'
+        + '<div class="slide-num">' + (idx + 1) + '</div>'
+        + '<div class="slide-thumb">' + thumb + '</div>'
+        + '<div class="slide-info">'
+        + '<div class="slide-name">' + escHtml(item.name || 'Slide ' + (idx + 1)) + '</div>'
+        + '<div class="slide-meta">' + typeLabel(item) + '</div>'
         + '</div>'
+        + '<div class="slide-actions">'
+        + durationHtml
         + '<button class="remove-btn" onclick="removeSlide(' + item.id + ')">Remove</button>'
         + '</div>'
+        + '</div>';
         + '</div>';
     }).join('')
     + '</div>';
@@ -445,6 +455,13 @@ function handleFile(f) {
   document.getElementById('fsize').textContent = fmtBytes(f.size);
   dropzone.style.display = 'none';
   document.getElementById('file-selected').classList.add('show');
+  // Hide duration field for video files
+  var isVideo = f.type.startsWith('video/');
+  var durField = document.getElementById('duration-field');
+  if (durField) {
+    durField.style.display = isVideo ? 'none' : 'block';
+    if (isVideo) durField.querySelector('input').value = '0';
+  }
 }
 
 function fmtBytes(b) {
@@ -495,6 +512,15 @@ function uploadSlide() {
 }
 
 // ── Helpers ───────────────────────────────────────────────
+function formatDur(seconds) {
+  if (!seconds) return '--';
+  var s = Math.round(seconds);
+  if (s < 60) return s + 's';
+  var m = Math.floor(s / 60);
+  var rem = s % 60;
+  return m + 'm' + (rem > 0 ? ' ' + rem + 's' : '');
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
