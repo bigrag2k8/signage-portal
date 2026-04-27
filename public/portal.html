@@ -74,6 +74,7 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .slide-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
 .slide-item:hover{border-color:rgba(99,102,241,.3)}
 .slide-item.dragging{opacity:.4;border-color:var(--accent);background:rgba(99,102,241,.1)}
+.slide-item.dragging *{pointer-events:none}
 .slide-item.drag-over{border-color:var(--accent);border-style:dashed;transform:scale(1.01)}
 .drag-handle{cursor:grab;color:var(--muted);padding:4px 6px;display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .drag-handle:active{cursor:grabbing}
@@ -389,63 +390,82 @@ function renderPlaylist(items) {
     + '</div>';
 }
 
-// ── Drag and drop reordering ─────────────────────────────
-var dragSrcId = null;
+// -- Drag and drop reordering
+var dragSrcIdx = null;
 
 function initDragDrop() {
-  var items = document.querySelectorAll('.slide-item');
-  items.forEach(function(item) {
+  var list = document.querySelector('.slides-list');
+  if (!list) return;
+  var items = Array.from(list.querySelectorAll('.slide-item'));
+
+  items.forEach(function(item, idx) {
+    // Make only the drag handle trigger drag, not the whole card
+    var handle = item.querySelector('.drag-handle');
+    if (handle) {
+      handle.addEventListener('mousedown', function() {
+        item.setAttribute('draggable', 'true');
+      });
+      handle.addEventListener('mouseup', function() {
+        item.setAttribute('draggable', 'false');
+      });
+    }
+    item.setAttribute('draggable', 'false');
+
     item.addEventListener('dragstart', function(e) {
-      dragSrcId = item.dataset.id;
-      item.classList.add('dragging');
+      dragSrcIdx = idx;
       e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', idx);
+      setTimeout(function() { item.classList.add('dragging'); }, 0);
     });
+
     item.addEventListener('dragend', function() {
       item.classList.remove('dragging');
-      document.querySelectorAll('.slide-item').forEach(function(i) {
+      item.setAttribute('draggable', 'false');
+      list.querySelectorAll('.slide-item').forEach(function(i) {
         i.classList.remove('drag-over');
       });
     });
+
     item.addEventListener('dragover', function(e) {
       e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
-      document.querySelectorAll('.slide-item').forEach(function(i) {
+      list.querySelectorAll('.slide-item').forEach(function(i) {
         i.classList.remove('drag-over');
       });
-      if (item.dataset.id !== dragSrcId) {
-        item.classList.add('drag-over');
+      if (idx !== dragSrcIdx) item.classList.add('drag-over');
+    });
+
+    item.addEventListener('dragleave', function(e) {
+      // Only remove if leaving to outside the item
+      if (!item.contains(e.relatedTarget)) {
+        item.classList.remove('drag-over');
       }
     });
+
     item.addEventListener('drop', function(e) {
       e.preventDefault();
+      e.stopPropagation();
       item.classList.remove('drag-over');
-      if (item.dataset.id === dragSrcId) return;
-      // Reorder currentSlides array
-      var fromIdx = currentSlides.findIndex(function(s) { return String(s.id) === String(dragSrcId); });
-      var toIdx = currentSlides.findIndex(function(s) { return String(s.id) === String(item.dataset.id); });
-      if (fromIdx === -1 || toIdx === -1) return;
-      // Move item
+      var fromIdx = dragSrcIdx;
+      var toIdx = idx;
+      if (fromIdx === null || fromIdx === toIdx) return;
+
+      // Reorder array
       var moved = currentSlides.splice(fromIdx, 1)[0];
       currentSlides.splice(toIdx, 0, moved);
-      // Update priorities
-      var reordered = currentSlides.map(function(slide, idx) {
-        return Object.assign({}, slide, { priority: idx + 1 });
+      currentSlides = currentSlides.map(function(s, i) {
+        return Object.assign({}, s, { priority: i + 1 });
       });
-      currentSlides = reordered;
-      // Re-render immediately for instant feedback
+
       renderPlaylist(currentSlides);
-      initDragDrop();
-      // Save to Yodeck
-      savePlaylistOrder(reordered);
+      savePlaylistOrder(currentSlides);
     });
   });
 }
 
 function savePlaylistOrder(items) {
   if (!currentPlaylistId) return;
-  var saveBtn = document.getElementById('save-order-btn');
-  if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
-
   fetch('/api/playlist/' + currentPlaylistId + '/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
