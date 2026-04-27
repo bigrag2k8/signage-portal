@@ -72,7 +72,19 @@ app.get('/api/screens', auth.requireClient, function(req, res) {
     var screens = assignedIds.length > 0
       ? allScreens.filter(function(s) { return assignedIds.indexOf(String(s.id)) !== -1; })
       : allScreens;
-    res.json({ screens: screens });
+    // Normalize screen data for the portal
+    var normalized = screens.map(function(s) {
+      return {
+        id: s.id,
+        name: s.name,
+        online: s.state && s.state.online === true,
+        updating: s.state && s.state.updating === true,
+        last_seen: s.state && s.state.last_seen,
+        screenshot_url: s.screenshot_url || null,
+        last_pushed: s.last_pushed
+      };
+    });
+    res.json({ screens: normalized });
   }).catch(function(err) {
     console.error('Screens error:', err.message);
     res.status(500).json({ error: 'Could not load screens. Check your Yodeck token.' });
