@@ -171,6 +171,7 @@ input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
         </button>
       </div>
 
+      <div id="screenshot-wrap" style="display:none"></div>
       <div class="playlist-header">
         <span class="playlist-title">Current Playlist</span>
         <span class="playlist-count" id="slide-count">0 slides</span>
@@ -271,7 +272,7 @@ function loadSlideCount(screenId) {
 }
 
 // ── Select a screen ───────────────────────────────────────
-function selectScreen(id, name, online) {
+function selectScreen(id, name, online, screenshotUrl) {
   currentScreenId = id;
   // Update sidebar active state
   document.querySelectorAll('.screen-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -284,8 +285,17 @@ function selectScreen(id, name, online) {
   document.getElementById('screen-title').textContent = name;
 
   var badge = document.getElementById('screen-badge');
-  badge.textContent = online ? 'Online' : 'Offline';
+  badge.textContent = online ? '● Online' : '● Offline';
   badge.className = 'screen-online-badge ' + (online ? 'online' : 'offline');
+
+  // Show screenshot if available
+  var ssWrap = document.getElementById('screenshot-wrap');
+  if (screenshotUrl && ssWrap) {
+    ssWrap.innerHTML = '<img src="' + screenshotUrl + '" alt="Live screenshot" style="width:100%;max-width:320px;border-radius:10px;border:1px solid var(--border);margin-bottom:20px">';
+    ssWrap.style.display = 'block';
+  } else if (ssWrap) {
+    ssWrap.style.display = 'none';
+  }
 
   loadScreenPlaylist(id);
 }
