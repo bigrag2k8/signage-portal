@@ -35,7 +35,8 @@ function getScreens(token) {
     var screens = res.data.results || res.data;
     if (screens.length > 0) {
       console.log('Screen fields sample:', JSON.stringify(Object.keys(screens[0])));
-      console.log('Screen status sample:', JSON.stringify({name: screens[0].name, online: screens[0].online, status: screens[0].status, is_online: screens[0].is_online, player_status: screens[0].player_status, last_seen: screens[0].last_seen}));
+      console.log('Screen status sample:', JSON.stringify({name: screens[0].name, state: screens[0].state, last_pushed: screens[0].last_pushed, screenshot_url: screens[0].screenshot_url ? 'yes' : 'no'}));
+      console.log('All screen states:', JSON.stringify(screens.map(function(s){ return {name:s.name, state:s.state}; })));
     }
     return screens;
   });
