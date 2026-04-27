@@ -244,12 +244,17 @@ function selectScreen(s) {
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
   if (s.screenshot_url) {
-    ssWrap.innerHTML = '<img src="' + s.screenshot_url + '" style="max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border)">';
+    var img = document.createElement('img');
+    img.src = '/api/screenshot/' + s.id;
+    img.style.cssText = 'max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border)';
+    img.onerror = function() { ssWrap.style.display = 'none'; };
+    ssWrap.innerHTML = '';
+    ssWrap.appendChild(img);
     ssWrap.style.display = 'block';
   } else {
     ssWrap.style.display = 'none';
   }
-  loadPlaylist(s.id);
+    loadPlaylist(s.id);
 }
 
 function loadPlaylist(screenId) {
