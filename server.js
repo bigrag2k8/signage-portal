@@ -73,6 +73,11 @@ app.get('/api/screens', auth.requireClient, function(req, res) {
       ? allScreens.filter(function(s) { return assignedIds.indexOf(String(s.id)) !== -1; })
       : allScreens;
     // Normalize screen data for the portal
+    console.log('Raw screen data sample:', JSON.stringify({
+      name: screens[0] && screens[0].name,
+      screenshot_url: screens[0] && screens[0].screenshot_url,
+      state: screens[0] && screens[0].state
+    }));
     var normalized = screens.map(function(s) {
       return {
         id: s.id,
