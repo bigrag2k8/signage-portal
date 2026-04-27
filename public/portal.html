@@ -3,619 +3,503 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Publish Content — Signage Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<title>My Screens — Signage Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;
+  --accent:#6366f1;--glow:rgba(99,102,241,0.25);--text:#f1f1f3;--muted:#6b6b7a;
+  --success:#34d399;--error:#f87171;--warning:#fbbf24
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
 
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1a1a24;
-    --border: #1e1e2e;
-    --accent: #6366f1;
-    --accent-glow: rgba(99,102,241,0.25);
-    --text: #f1f1f3;
-    --muted: #6b6b7a;
-    --success: #34d399;
-    --error: #f87171;
-  }
+/* Nav */
+nav{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-family:'DM Serif Display',serif;font-size:18px;display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent)}
+.logout{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s}
+.logout:hover{border-color:var(--accent);color:var(--text)}
 
-  html, body {
-    min-height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-  }
+/* Layout */
+main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 58px)}
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-    z-index: 0;
-  }
+/* Sidebar - screens list */
+.sidebar{border-right:1px solid var(--border);padding:24px 16px;background:rgba(10,10,15,.5)}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;padding:0 8px}
+.screen-btn{width:100%;text-align:left;background:none;border:none;padding:12px 12px;border-radius:10px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;transition:background .2s;position:relative}
+.screen-btn:hover{background:var(--surface2)}
+.screen-btn.active{background:rgba(99,102,241,.15);color:var(--accent)}
+.screen-btn.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--accent);border-radius:2px}
+.screen-status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.screen-status-dot.online{background:var(--success);box-shadow:0 0 6px var(--success)}
+.screen-name-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slide-count{font-size:11px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:10px;flex-shrink:0}
+.screens-loading-msg{color:var(--muted);font-size:13px;padding:12px;text-align:center}
 
-  /* ── Nav ── */
-  nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(10,10,15,0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+/* Content area */
+.content{padding:32px;overflow-y:auto}
+.content-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:var(--muted);gap:16px;padding:48px}
+.content-empty svg{width:56px;height:56px;fill:var(--border)}
+.content-empty h2{font-family:'DM Serif Display',serif;font-size:24px;font-weight:400;color:var(--text)}
 
-  .nav-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'DM Serif Display', serif;
-    font-size: 18px;
-    color: var(--text);
-  }
+/* Screen header */
+.screen-hdr{display:flex;align-items:center;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.screen-hdr h1{font-family:'DM Serif Display',serif;font-size:26px;font-weight:400;flex:1}
+.screen-online-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:500}
+.screen-online-badge.online{background:rgba(52,211,153,.1);color:var(--success);border:1px solid rgba(52,211,153,.2)}
+.screen-online-badge.offline{background:rgba(107,107,122,.1);color:var(--muted);border:1px solid var(--border)}
 
-  .nav-logo .dot {
-    width: 8px; height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent);
-  }
+/* Add slide button */
+.add-slide-btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border:none;border-radius:10px;cursor:pointer;transition:opacity .2s;white-space:nowrap}
+.add-slide-btn:hover{opacity:.9}
+.add-slide-btn svg{width:16px;height:16px;fill:white;flex-shrink:0}
 
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 13px;
-    color: var(--muted);
-  }
+/* Playlist */
+.playlist-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.playlist-title{font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.playlist-count{font-size:12px;color:var(--muted);background:var(--surface2);padding:2px 8px;border-radius:10px}
 
-  .logout-btn {
-    color: var(--muted);
-    text-decoration: none;
-    padding: 6px 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 13px;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .logout-btn:hover { border-color: var(--accent); color: var(--text); }
+.playlist-empty{background:var(--surface);border:2px dashed var(--border);border-radius:14px;padding:48px 24px;text-align:center;color:var(--muted)}
+.playlist-empty svg{width:36px;height:36px;fill:var(--border);margin-bottom:12px}
+.playlist-empty p{font-size:14px;margin-bottom:16px}
 
-  /* ── Layout ── */
-  main {
-    position: relative;
-    z-index: 1;
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
-  }
+.slides-list{display:grid;gap:10px}
+.slide-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
+.slide-item:hover{border-color:rgba(99,102,241,.3)}
+.slide-num{width:28px;height:28px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0}
+.slide-thumb{width:64px;height:44px;background:var(--surface2);border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)}
+.slide-thumb img{width:100%;height:100%;object-fit:cover}
+.slide-thumb svg{width:22px;height:22px;fill:var(--muted)}
+.slide-info{flex:1;min-width:0}
+.slide-name{font-size:14px;font-weight:500;word-break:break-all;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slide-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.slide-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.duration-input{width:72px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;text-align:center;outline:none;transition:border-color .2s}
+.duration-input:focus{border-color:var(--accent)}
+.duration-label{font-size:11px;color:var(--muted)}
+.remove-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.remove-btn:hover{border-color:var(--error);color:var(--error)}
 
-  .page-header {
-    margin-bottom: 36px;
-  }
-  .page-header h1 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 32px;
-    font-weight: 400;
-    margin-bottom: 8px;
-  }
-  .page-header p {
-    color: var(--muted);
-    font-size: 15px;
-  }
+/* Upload modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;padding:32px;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-hdr h2{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400}
+.modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:4px;transition:color .2s}
+.modal-close:hover{color:var(--text)}
 
-  /* ── Steps ── */
-  .steps {
-    display: grid;
-    gap: 20px;
-  }
+/* Dropzone */
+.dropzone{border:2px dashed var(--border);border-radius:12px;padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface2)}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(99,102,241,.05)}
+.dropzone svg{width:36px;height:36px;fill:var(--muted);margin-bottom:10px}
+.dropzone h3{font-size:15px;margin-bottom:4px}
+.dropzone p{font-size:13px;color:var(--muted)}
+.dropzone .cta{margin-top:6px;color:var(--accent);font-size:13px}
+.file-selected{display:none;align-items:center;gap:12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:12px 14px}
+.file-selected.show{display:flex}
+.file-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.file-icon svg{width:18px;height:18px;fill:white}
+.file-meta{flex:1}
+.file-name{font-size:13px;font-weight:500;word-break:break-all}
+.file-size{font-size:11px;color:var(--muted);margin-top:2px}
+.rm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
+.rm-btn:hover{color:var(--error)}
 
-  .step {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 28px;
-    transition: border-color 0.2s;
-  }
-  .step.active { border-color: rgba(99,102,241,0.4); }
+/* Fields */
+.field{margin-bottom:16px;margin-top:16px}
+label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.05em;text-transform:uppercase}
+input[type=text],input[type=number]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.modal-footer{display:flex;gap:10px;margin-top:20px}
+.upload-btn{flex:1;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.upload-btn:hover:not(:disabled){opacity:.9}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed}
+.cancel-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 20px;border-radius:8px;cursor:pointer;transition:all .2s}
+.cancel-btn:hover{border-color:var(--text);color:var(--text)}
+.prog{height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0;transition:width .4s;margin-top:12px;display:none}
 
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
+/* Toast */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 20px;font-size:14px;display:flex;align-items:center;gap:10px;z-index:1000;transition:transform .35s cubic-bezier(.34,1.56,.64,1);min-width:260px;max-width:90vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(52,211,153,.4)}
+#toast.error{border-color:rgba(248,113,113,.4)}
 
-  .step-num {
-    width: 32px; height: 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .step-title {
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  /* ── Drop zone ── */
-  .dropzone {
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    background: var(--surface2);
-  }
-  .dropzone:hover, .dropzone.dragover {
-    border-color: var(--accent);
-    background: rgba(99,102,241,0.05);
-  }
-
-  .dropzone svg {
-    width: 40px; height: 40px;
-    fill: var(--muted);
-    margin-bottom: 12px;
-  }
-
-  .dropzone h3 {
-    font-size: 16px;
-    font-weight: 500;
-    margin-bottom: 6px;
-  }
-
-  .dropzone p {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .file-selected {
-    display: none;
-    align-items: center;
-    gap: 14px;
-    background: rgba(99,102,241,0.08);
-    border: 1px solid rgba(99,102,241,0.3);
-    border-radius: 10px;
-    padding: 14px 18px;
-  }
-  .file-selected.show { display: flex; }
-
-  .file-icon {
-    width: 40px; height: 40px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .file-icon svg { width: 20px; height: 20px; fill: white; }
-
-  .file-info { flex: 1; }
-  .file-name { font-size: 14px; font-weight: 500; word-break: break-all; }
-  .file-size { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-  .remove-file {
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 4px;
-    line-height: 1;
-    font-size: 18px;
-    transition: color 0.2s;
-  }
-  .remove-file:hover { color: var(--error); }
-
-  /* ── Field ── */
-  .field { margin-bottom: 16px; }
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    margin-bottom: 7px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  input[type="text"], input[type="number"] {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 11px 14px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  /* ── Screens grid ── */
-  #screens-loading {
-    color: var(--muted);
-    font-size: 14px;
-    text-align: center;
-    padding: 24px;
-  }
-
-  #screens-error {
-    color: var(--error);
-    font-size: 14px;
-    padding: 12px;
-    background: rgba(248,113,113,0.08);
-    border-radius: 8px;
-    display: none;
-  }
-
-  .screens-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-  }
-
-  .screen-card {
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    user-select: none;
-  }
-
-  .screen-card:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.04); }
-  .screen-card.selected { border-color: var(--accent); background: rgba(99,102,241,0.1); }
-
-  .screen-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-  .status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-  }
-  .status-dot.online { background: var(--success); }
-
-  .screen-name {
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .screen-check {
-    float: right;
-    color: var(--accent);
-    display: none;
-  }
-  .screen-card.selected .screen-check { display: inline; }
-
-  /* ── Publish button ── */
-  .publish-btn {
-    width: 100%;
-    padding: 15px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-    position: relative;
-    overflow: hidden;
-  }
-  .publish-btn:hover:not(:disabled) { opacity: 0.9; }
-  .publish-btn:active:not(:disabled) { transform: scale(0.99); }
-  .publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ── Toast ── */
-  #toast {
-    position: fixed;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 22px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    z-index: 1000;
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    min-width: 280px;
-    max-width: 90vw;
-  }
-  #toast.show { transform: translateX(-50%) translateY(0); }
-  #toast.success { border-color: rgba(52,211,153,0.4); }
-  #toast.error { border-color: rgba(248,113,113,0.4); }
-  .toast-icon { font-size: 18px; flex-shrink: 0; }
-
-  /* ── Progress ── */
-  #progress-bar {
-    height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    border-radius: 2px;
-    width: 0%;
-    transition: width 0.3s;
-    margin-top: 12px;
-    display: none;
-  }
+/* Responsive */
+@media(max-width:640px){
+  main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .sidebar{border-right:none;border-bottom:1px solid var(--border);padding:16px;display:flex;gap:8px;overflow-x:auto}
+  .sidebar-title{display:none}
+  .screen-btn{white-space:nowrap;width:auto;padding:8px 14px}
+  .content{padding:20px}
+}
 </style>
 </head>
 <body>
-
 <nav>
-  <div class="nav-logo">
-    <div class="dot"></div>
-    Signage Portal
-  </div>
-  <div class="nav-right">
-    <span id="welcome-name"></span>
-    <a href="/logout" class="logout-btn">Sign Out</a>
-  </div>
+  <div class="nav-logo"><div class="dot"></div>Signage Portal</div>
+  <a href="/logout" class="logout">Sign Out</a>
 </nav>
 
 <main>
-  <div class="page-header">
-    <h1>Publish Content</h1>
-    <p>Upload your design and send it live to your digital screens in seconds.</p>
+  <!-- Sidebar: screen list -->
+  <div class="sidebar">
+    <div class="sidebar-title">My Screens</div>
+    <div id="screens-sidebar">
+      <div class="screens-loading-msg">Loading...</div>
+    </div>
   </div>
 
-  <div class="steps">
-
-    <!-- Step 1: Upload -->
-    <div class="step active">
-      <div class="step-header">
-        <div class="step-num">1</div>
-        <div class="step-title">Upload Your Design</div>
-      </div>
-
-      <input type="file" id="file-input" accept="image/*,video/mp4,application/pdf" style="display:none">
-
-      <div class="dropzone" id="dropzone">
-        <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-        <h3>Drop your file here</h3>
-        <p>JPG, PNG, GIF, MP4, PDF · Up to 200MB</p>
-        <p style="margin-top:8px;color:var(--accent);font-size:13px">or click to browse</p>
-      </div>
-
-      <div class="file-selected" id="file-selected">
-        <div class="file-icon">
-          <svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
-        </div>
-        <div class="file-info">
-          <div class="file-name" id="file-name-display"></div>
-          <div class="file-size" id="file-size-display"></div>
-        </div>
-        <button class="remove-file" id="remove-file" title="Remove file">×</button>
-      </div>
-
-      <div class="field" style="margin-top:16px">
-        <label>Display Name (optional)</label>
-        <input type="text" id="display-name" placeholder="e.g. Summer Promo 2025">
-      </div>
+  <!-- Main content -->
+  <div class="content" id="content">
+    <div class="content-empty" id="empty-state">
+      <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+      <h2>Select a Screen</h2>
+      <p>Pick a screen from the left to view and manage its playlist.</p>
     </div>
 
-    <!-- Step 2: Pick screens -->
-    <div class="step">
-      <div class="step-header">
-        <div class="step-num">2</div>
-        <div class="step-title">Select Your Screens</div>
+    <div id="screen-view" style="display:none">
+      <div class="screen-hdr">
+        <h1 id="screen-title">Screen Name</h1>
+        <span class="screen-online-badge" id="screen-badge">Online</span>
+        <button class="add-slide-btn" onclick="openUploadModal()">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Add Slide
+        </button>
       </div>
 
-      <div id="screens-loading">Loading your screens…</div>
-      <div id="screens-error"></div>
-      <div class="screens-grid" id="screens-grid"></div>
+      <div class="playlist-header">
+        <span class="playlist-title">Current Playlist</span>
+        <span class="playlist-count" id="slide-count">0 slides</span>
+        <button onclick="loadScreenPlaylist(currentScreenId)" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:auto;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">Refresh</button>
+      </div>
+
+      <div id="playlist-wrap">
+        <div class="screens-loading-msg">Loading playlist...</div>
+      </div>
     </div>
-
-    <!-- Step 3: Duration + Publish -->
-    <div class="step">
-      <div class="step-header">
-        <div class="step-num">3</div>
-        <div class="step-title">Set Duration & Publish</div>
-      </div>
-
-      <div class="field">
-        <label>Display Duration (seconds per loop)</label>
-        <input type="number" id="duration" value="10" min="1" max="3600" style="max-width:160px">
-      </div>
-
-      <button class="publish-btn" id="publish-btn">
-        Publish to Screens
-      </button>
-      <div id="progress-bar"></div>
-    </div>
-
   </div>
 </main>
 
-<div id="toast">
-  <span class="toast-icon" id="toast-icon"></span>
-  <span id="toast-msg"></span>
+<!-- Upload Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Add Slide</h2>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*,video/mp4,application/pdf" style="display:none">
+
+    <div class="dropzone" id="dropzone">
+      <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+      <h3>Drop your file here</h3>
+      <p>JPG, PNG, GIF, MP4, PDF &middot; Up to 200MB</p>
+      <p class="cta">or click to browse</p>
+    </div>
+
+    <div class="file-selected" id="file-selected">
+      <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg></div>
+      <div class="file-meta"><div class="file-name" id="fname"></div><div class="file-size" id="fsize"></div></div>
+      <button class="rm-btn" id="rm-btn">&#x2715;</button>
+    </div>
+
+    <div class="field">
+      <label>Display Name (optional)</label>
+      <input type="text" id="display-name" placeholder="e.g. Summer Promo 2025">
+    </div>
+    <div class="field" style="margin-top:0">
+      <label>Duration (seconds)</label>
+      <input type="number" id="duration" value="10" min="1" max="3600" style="max-width:120px">
+    </div>
+
+    <div class="modal-footer">
+      <button class="upload-btn" id="upload-btn" onclick="uploadSlide()">Upload &amp; Add to Playlist</button>
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+    </div>
+    <div class="prog" id="prog"></div>
+  </div>
 </div>
 
+<div id="toast"><span id="toast-icon"></span><span id="toast-msg"></span></div>
+
 <script>
-  let selectedFile = null;
-  let selectedScreens = [];
-  let allScreens = [];
+var allScreens = [];
+var currentScreenId = null;
+var currentPlaylistId = null;
+var currentSlides = [];
+var selectedFile = null;
 
-  // ── Show welcome name ──────────────────────────────
-  // (comes from session via meta — we just hide the raw text)
-  document.getElementById('welcome-name').textContent = '';
-
-  // ── Dropzone ──────────────────────────────────────
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('file-input');
-  const fileSelected = document.getElementById('file-selected');
-
-  dropzone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
-
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-  dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-  });
-
-  document.getElementById('remove-file').addEventListener('click', () => {
-    selectedFile = null;
-    fileInput.value = '';
-    dropzone.style.display = '';
-    fileSelected.classList.remove('show');
-  });
-
-  function handleFile(file) {
-    selectedFile = file;
-    document.getElementById('file-name-display').textContent = file.name;
-    document.getElementById('file-size-display').textContent = formatBytes(file.size);
-    dropzone.style.display = 'none';
-    fileSelected.classList.add('show');
-  }
-
-  function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  // ── Load screens ───────────────────────────────────
-  async function loadScreens() {
-    try {
-      const res = await fetch('/api/screens');
-      const data = await res.json();
-      const loadingEl = document.getElementById('screens-loading');
-      const errorEl = document.getElementById('screens-error');
-      const gridEl = document.getElementById('screens-grid');
-
-      if (data.error) {
-        loadingEl.style.display = 'none';
-        errorEl.textContent = data.error;
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      allScreens = data.screens || [];
-      loadingEl.style.display = 'none';
-
-      if (allScreens.length === 0) {
-        errorEl.textContent = 'No screens found. Contact your account manager.';
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      gridEl.innerHTML = allScreens.map(s => `
-        <div class="screen-card" data-id="${s.id}" onclick="toggleScreen(this, '${s.id}')">
-          <div class="screen-status">
-            <div class="status-dot ${s.online ? 'online' : ''}"></div>
-            ${s.online ? 'Online' : 'Offline'}
-            <span class="screen-check">✓</span>
-          </div>
-          <div class="screen-name">${s.name || 'Screen ' + s.id}</div>
-        </div>
-      `).join('');
-    } catch (err) {
-      document.getElementById('screens-loading').textContent = 'Error loading screens. Please refresh.';
+// ── Load screens into sidebar ─────────────────────────────
+function loadScreens() {
+  fetch('/api/screens').then(function(r){ return r.json(); }).then(function(data) {
+    var sidebar = document.getElementById('screens-sidebar');
+    if (data.error) {
+      sidebar.innerHTML = '<div class="screens-loading-msg" style="color:var(--error)">' + data.error + '</div>';
+      return;
     }
+    allScreens = data.screens || [];
+    if (!allScreens.length) {
+      sidebar.innerHTML = '<div class="screens-loading-msg">No screens found.</div>';
+      return;
+    }
+    sidebar.innerHTML = allScreens.map(function(s) {
+      return '<button class="screen-btn" id="sbtn-' + s.id + '" onclick="selectScreen(' + s.id + ',\'' + escHtml(s.name) + '\',' + (s.online ? 'true' : 'false') + ')">'
+        + '<div class="screen-status-dot' + (s.online ? ' online' : '') + '"></div>'
+        + '<span class="screen-name-text">' + escHtml(s.name || 'Screen ' + s.id) + '</span>'
+        + '<span class="slide-count" id="count-' + s.id + '">...</span>'
+        + '</button>';
+    }).join('');
+    // Load slide counts for each screen
+    allScreens.forEach(function(s) { loadSlideCount(s.id); });
+  }).catch(function() {
+    document.getElementById('screens-sidebar').innerHTML = '<div class="screens-loading-msg" style="color:var(--error)">Error loading screens.</div>';
+  });
+}
+
+function loadSlideCount(screenId) {
+  fetch('/api/playlist/' + screenId).then(function(r){ return r.json(); }).then(function(data) {
+    var el = document.getElementById('count-' + screenId);
+    if (el) el.textContent = (data.items || []).length;
+  }).catch(function() {
+    var el = document.getElementById('count-' + screenId);
+    if (el) el.textContent = '?';
+  });
+}
+
+// ── Select a screen ───────────────────────────────────────
+function selectScreen(id, name, online) {
+  currentScreenId = id;
+  // Update sidebar active state
+  document.querySelectorAll('.screen-btn').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.getElementById('sbtn-' + id);
+  if (btn) btn.classList.add('active');
+
+  // Show screen view
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('screen-view').style.display = 'block';
+  document.getElementById('screen-title').textContent = name;
+
+  var badge = document.getElementById('screen-badge');
+  badge.textContent = online ? 'Online' : 'Offline';
+  badge.className = 'screen-online-badge ' + (online ? 'online' : 'offline');
+
+  loadScreenPlaylist(id);
+}
+
+// ── Load playlist for selected screen ─────────────────────
+function loadScreenPlaylist(screenId) {
+  document.getElementById('playlist-wrap').innerHTML = '<div class="screens-loading-msg">Loading playlist...</div>';
+  document.getElementById('slide-count').textContent = '...';
+
+  fetch('/api/playlist/' + screenId).then(function(r){ return r.json(); }).then(function(data) {
+    currentPlaylistId = data.playlistId;
+    currentSlides = data.items || [];
+    renderPlaylist(currentSlides);
+
+    var countEl = document.getElementById('slide-count');
+    countEl.textContent = currentSlides.length + ' slide' + (currentSlides.length !== 1 ? 's' : '');
+
+    var sidebarCount = document.getElementById('count-' + screenId);
+    if (sidebarCount) sidebarCount.textContent = currentSlides.length;
+  }).catch(function() {
+    document.getElementById('playlist-wrap').innerHTML = '<div class="screens-loading-msg" style="color:var(--error)">Error loading playlist.</div>';
+  });
+}
+
+// ── Render playlist slides ─────────────────────────────────
+function renderPlaylist(items) {
+  var wrap = document.getElementById('playlist-wrap');
+  if (!items.length) {
+    wrap.innerHTML = '<div class="playlist-empty">'
+      + '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" fill="none"/><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z" fill="currentColor" opacity=".3"/></svg>'
+      + '<p>No slides in this screen\'s playlist yet.</p>'
+      + '<button class="add-slide-btn" onclick="openUploadModal()" style="margin:0 auto">'
+      + '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>'
+      + 'Add First Slide</button>'
+      + '</div>';
+    return;
   }
 
-  function toggleScreen(el, id) {
-    el.classList.toggle('selected');
-    if (el.classList.contains('selected')) {
-      selectedScreens.push(String(id));
+  wrap.innerHTML = '<div class="slides-list">'
+    + items.map(function(item, idx) {
+      var thumb = item.thumbnail_url
+        ? '<img src="' + item.thumbnail_url + '" alt="slide">'
+        : '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-8-2l-4-5-3 4h14l-5-6-2 3z" fill="currentColor"/></svg>';
+      var dur = item.duration || 10;
+      return '<div class="slide-item" id="slide-' + item.id + '">'
+        + '<div class="slide-num">' + (idx + 1) + '</div>'
+        + '<div class="slide-thumb">' + thumb + '</div>'
+        + '<div class="slide-info">'
+        + '<div class="slide-name">' + escHtml(item.name || 'Slide ' + (idx + 1)) + '</div>'
+        + '<div class="slide-meta">' + typeLabel(item) + '</div>'
+        + '</div>'
+        + '<div class="slide-actions">'
+        + '<div style="text-align:center">'
+        + '<input class="duration-input" type="number" value="' + dur + '" min="1" max="3600" onchange="updateDuration(' + item.id + ', this.value)">'
+        + '<div class="duration-label">seconds</div>'
+        + '</div>'
+        + '<button class="remove-btn" onclick="removeSlide(' + item.id + ')">Remove</button>'
+        + '</div>'
+        + '</div>';
+    }).join('')
+    + '</div>';
+}
+
+function typeLabel(item) {
+  if (!item.media_origin) return 'Media';
+  var t = item.media_origin.type || '';
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// ── Update slide duration ─────────────────────────────────
+function updateDuration(mediaId, newDuration) {
+  if (!currentPlaylistId) return;
+  var dur = parseInt(newDuration) || 10;
+  var updatedItems = currentSlides.map(function(item) {
+    if (String(item.id) === String(mediaId)) {
+      return Object.assign({}, item, { duration: dur });
+    }
+    return item;
+  });
+
+  fetch('/api/playlist/' + currentPlaylistId + '/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: updatedItems })
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.success) {
+      currentSlides = updatedItems;
+      showToast('Duration updated.', 'success');
     } else {
-      selectedScreens = selectedScreens.filter(s => s !== String(id));
+      showToast(data.error || 'Could not update duration.', 'error');
     }
-  }
+  }).catch(function() { showToast('Network error.', 'error'); });
+}
 
-  // ── Publish ────────────────────────────────────────
-  document.getElementById('publish-btn').addEventListener('click', async () => {
-    if (!selectedFile) return showToast('Please select a file first.', 'error');
-    if (selectedScreens.length === 0) return showToast('Please select at least one screen.', 'error');
+// ── Remove a slide ────────────────────────────────────────
+function removeSlide(mediaId) {
+  if (!currentPlaylistId) return showToast('No playlist found for this screen.', 'error');
+  if (!confirm('Remove this slide from the playlist?')) return;
 
-    const btn = document.getElementById('publish-btn');
-    const bar = document.getElementById('progress-bar');
-    btn.disabled = true;
-    btn.textContent = 'Publishing…';
-    bar.style.display = 'block';
-    bar.style.width = '30%';
-
-    const form = new FormData();
-    form.append('file', selectedFile);
-    form.append('displayName', document.getElementById('display-name').value);
-    form.append('duration', document.getElementById('duration').value);
-    selectedScreens.forEach(id => form.append('screenIds', id));
-
-    try {
-      bar.style.width = '60%';
-      const res = await fetch('/api/publish', { method: 'POST', body: form });
-      const data = await res.json();
-      bar.style.width = '100%';
-
-      setTimeout(() => {
-        bar.style.display = 'none';
-        bar.style.width = '0%';
-      }, 600);
-
+  fetch('/api/playlist/' + currentPlaylistId + '/item/' + mediaId, { method: 'DELETE' })
+    .then(function(r){ return r.json(); }).then(function(data) {
       if (data.success) {
-        showToast(data.message, 'success');
-        // Reset
-        selectedFile = null;
-        selectedScreens = [];
-        fileInput.value = '';
-        document.getElementById('file-selected').classList.remove('show');
-        document.getElementById('dropzone').style.display = '';
-        document.getElementById('display-name').value = '';
-        document.querySelectorAll('.screen-card.selected').forEach(el => el.classList.remove('selected'));
+        showToast('Slide removed.', 'success');
+        loadScreenPlaylist(currentScreenId);
       } else {
-        showToast(data.error || 'Something went wrong.', 'error');
+        showToast(data.error || 'Could not remove slide.', 'error');
       }
-    } catch (err) {
-      showToast('Network error. Please try again.', 'error');
-    }
+    }).catch(function() { showToast('Network error.', 'error'); });
+}
 
-    btn.disabled = false;
-    btn.textContent = 'Publish to Screens';
-  });
+// ── Upload modal ──────────────────────────────────────────
+function openUploadModal() {
+  selectedFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('dropzone').style.display = '';
+  document.getElementById('file-selected').classList.remove('show');
+  document.getElementById('display-name').value = '';
+  document.getElementById('duration').value = '10';
+  document.getElementById('prog').style.display = 'none';
+  document.getElementById('prog').style.width = '0%';
+  document.getElementById('upload-btn').disabled = false;
+  document.getElementById('upload-btn').textContent = 'Upload & Add to Playlist';
+  document.getElementById('modal').classList.add('open');
+}
 
-  // ── Toast ──────────────────────────────────────────
-  let toastTimer;
-  function showToast(msg, type) {
-    const toast = document.getElementById('toast');
-    document.getElementById('toast-msg').textContent = msg;
-    document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '⚠️';
-    toast.className = `show ${type}`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.className = '', 4500);
-  }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
-  loadScreens();
+var dropzone = document.getElementById('dropzone');
+var fileInput = document.getElementById('file-input');
+dropzone.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', function() { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+dropzone.addEventListener('dragover', function(e) { e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', function() { dropzone.classList.remove('over'); });
+dropzone.addEventListener('drop', function(e) {
+  e.preventDefault(); dropzone.classList.remove('over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById('rm-btn').addEventListener('click', function() {
+  selectedFile = null; fileInput.value = '';
+  dropzone.style.display = ''; document.getElementById('file-selected').classList.remove('show');
+});
+
+function handleFile(f) {
+  selectedFile = f;
+  document.getElementById('fname').textContent = f.name;
+  document.getElementById('fsize').textContent = fmtBytes(f.size);
+  dropzone.style.display = 'none';
+  document.getElementById('file-selected').classList.add('show');
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Upload and add to playlist ────────────────────────────
+function uploadSlide() {
+  if (!selectedFile) return showToast('Please select a file.', 'error');
+  if (!currentScreenId) return showToast('No screen selected.', 'error');
+
+  var btn = document.getElementById('upload-btn');
+  var prog = document.getElementById('prog');
+  btn.disabled = true;
+  btn.textContent = 'Uploading...';
+  prog.style.display = 'block';
+  prog.style.width = '20%';
+
+  var form = new FormData();
+  form.append('file', selectedFile);
+  form.append('displayName', document.getElementById('display-name').value);
+  form.append('duration', document.getElementById('duration').value);
+  form.append('screenIds', currentScreenId);
+
+  prog.style.width = '50%';
+
+  fetch('/api/publish', { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      prog.style.width = '100%';
+      setTimeout(function() { prog.style.display = 'none'; prog.style.width = '0%'; }, 500);
+      if (data.success) {
+        showToast('Slide added to playlist!', 'success');
+        closeModal();
+        loadScreenPlaylist(currentScreenId);
+      } else {
+        showToast(data.error || 'Upload failed.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Upload & Add to Playlist';
+      }
+    }).catch(function() {
+      showToast('Network error.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Upload & Add to Playlist';
+    });
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var toastTimer;
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '⚠️';
+  t.className = 'show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.className = ''; }, 4000);
+}
+
+loadScreens();
 </script>
 </body>
 </html>
