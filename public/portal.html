@@ -74,7 +74,6 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .slide-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
 .slide-item:hover{border-color:rgba(99,102,241,.3)}
 .slide-item.dragging{opacity:.4;border-color:var(--accent);background:rgba(99,102,241,.1)}
-.slide-item.dragging *{pointer-events:none}
 .slide-item.drag-over{border-color:var(--accent);border-style:dashed;transform:scale(1.01)}
 .drag-handle{cursor:grab;color:var(--muted);padding:4px 6px;display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .drag-handle:active{cursor:grabbing}
@@ -373,7 +372,7 @@ function renderPlaylist(items) {
       var durationHtml = isVideo
         ? '<div style="text-align:center"><div style="font-size:13px;font-weight:600;color:var(--text)">' + formatDur(dur) + '</div><div class="duration-label">video length</div></div>'
         : '<div style="text-align:center"><input class="duration-input" type="number" value="' + dur + '" min="1" max="3600" onchange="updateDuration(' + item.id + ', this.value)"><div class="duration-label">seconds</div></div>';
-      return '<div class="slide-item" draggable="true" data-id="' + item.id + '" data-idx="' + idx + '">'
+      return '<div class="slide-item" data-id="' + item.id + '">'
         + '<div class="drag-handle" title="Drag to reorder"><span></span><span></span><span></span></div>'
         + '<div class="slide-num">' + (idx + 1) + '</div>'
         + '<div class="slide-thumb">' + thumb + '</div>'
@@ -390,78 +389,93 @@ function renderPlaylist(items) {
     + '</div>';
 }
 
-// -- Drag and drop reordering
-var dragSrcIdx = null;
+// -- Drag and drop reordering (mouse-based, no HTML5 drag API)
+var dragState = null;
 
 function initDragDrop() {
   var list = document.querySelector('.slides-list');
   if (!list) return;
-  var items = Array.from(list.querySelectorAll('.slide-item'));
 
-  items.forEach(function(item, idx) {
-    // Make only the drag handle trigger drag, not the whole card
-    var handle = item.querySelector('.drag-handle');
-    if (handle) {
-      handle.addEventListener('mousedown', function() {
-        item.setAttribute('draggable', 'true');
-      });
-      handle.addEventListener('mouseup', function() {
-        item.setAttribute('draggable', 'false');
-      });
-    }
-    item.setAttribute('draggable', 'false');
-
-    item.addEventListener('dragstart', function(e) {
-      dragSrcIdx = idx;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', idx);
-      setTimeout(function() { item.classList.add('dragging'); }, 0);
-    });
-
-    item.addEventListener('dragend', function() {
-      item.classList.remove('dragging');
-      item.setAttribute('draggable', 'false');
-      list.querySelectorAll('.slide-item').forEach(function(i) {
-        i.classList.remove('drag-over');
-      });
-    });
-
-    item.addEventListener('dragover', function(e) {
+  list.querySelectorAll('.drag-handle').forEach(function(handle, idx) {
+    handle.addEventListener('mousedown', function(e) {
       e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      list.querySelectorAll('.slide-item').forEach(function(i) {
-        i.classList.remove('drag-over');
-      });
-      if (idx !== dragSrcIdx) item.classList.add('drag-over');
-    });
+      var item = handle.closest('.slide-item');
+      var items = Array.from(list.querySelectorAll('.slide-item'));
+      var fromIdx = items.indexOf(item);
+      var rect = item.getBoundingClientRect();
 
-    item.addEventListener('dragleave', function(e) {
-      // Only remove if leaving to outside the item
-      if (!item.contains(e.relatedTarget)) {
-        item.classList.remove('drag-over');
-      }
-    });
+      // Create a floating clone
+      var clone = item.cloneNode(true);
+      clone.style.cssText = 'position:fixed;z-index:9999;width:' + rect.width + 'px;opacity:0.9;pointer-events:none;'
+        + 'left:' + rect.left + 'px;top:' + rect.top + 'px;box-shadow:0 8px 32px rgba(0,0,0,0.4);'
+        + 'border-color:var(--accent);background:var(--surface);border-radius:12px;padding:14px 16px;'
+        + 'display:flex;align-items:center;gap:14px;border:1px solid;';
+      document.body.appendChild(clone);
 
-    item.addEventListener('drop', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      item.classList.remove('drag-over');
-      var fromIdx = dragSrcIdx;
-      var toIdx = idx;
-      if (fromIdx === null || fromIdx === toIdx) return;
+      item.style.opacity = '0.3';
 
-      // Reorder array
-      var moved = currentSlides.splice(fromIdx, 1)[0];
-      currentSlides.splice(toIdx, 0, moved);
-      currentSlides = currentSlides.map(function(s, i) {
-        return Object.assign({}, s, { priority: i + 1 });
-      });
-
-      renderPlaylist(currentSlides);
-      savePlaylistOrder(currentSlides);
+      dragState = {
+        item: item,
+        clone: clone,
+        fromIdx: fromIdx,
+        startY: e.clientY,
+        offsetY: e.clientY - rect.top,
+        list: list
+      };
     });
   });
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  var clone = dragState.clone;
+  var rect = dragState.item.getBoundingClientRect();
+  clone.style.top = (e.clientY - dragState.offsetY) + 'px';
+
+  // Find which item we are hovering over
+  var items = Array.from(dragState.list.querySelectorAll('.slide-item'));
+  items.forEach(function(it) { it.classList.remove('drag-over'); });
+
+  var hoverIdx = null;
+  items.forEach(function(it, i) {
+    if (it === dragState.item) return;
+    var r = it.getBoundingClientRect();
+    var mid = r.top + r.height / 2;
+    if (e.clientY > r.top && e.clientY < r.bottom) {
+      hoverIdx = i;
+      it.classList.add('drag-over');
+    }
+  });
+  dragState.hoverIdx = hoverIdx;
+}
+
+function onDragEnd(e) {
+  if (!dragState) return;
+  var fromIdx = dragState.fromIdx;
+  var toIdx = dragState.hoverIdx;
+
+  // Clean up
+  dragState.clone.remove();
+  dragState.item.style.opacity = '';
+  dragState.list.querySelectorAll('.slide-item').forEach(function(i) {
+    i.classList.remove('drag-over');
+  });
+  dragState = null;
+
+  // Reorder if dropped on valid target
+  if (toIdx !== null && toIdx !== undefined && toIdx !== fromIdx) {
+    var moved = currentSlides.splice(fromIdx, 1)[0];
+    currentSlides.splice(toIdx, 0, moved);
+    currentSlides = currentSlides.map(function(s, i) {
+      return Object.assign({}, s, { priority: i + 1 });
+    });
+    renderPlaylist(currentSlides);
+    savePlaylistOrder(currentSlides);
+    showToast('Slide moved!', 'success');
+  }
 }
 
 function savePlaylistOrder(items) {
@@ -471,11 +485,7 @@ function savePlaylistOrder(items) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: items })
   }).then(function(r) { return r.json(); }).then(function(data) {
-    if (data.success) {
-      showToast('Order saved!', 'success');
-    } else {
-      showToast(data.error || 'Could not save order.', 'error');
-    }
+    if (!data.success) showToast(data.error || 'Could not save order.', 'error');
   }).catch(function() { showToast('Network error.', 'error'); });
 }
 
