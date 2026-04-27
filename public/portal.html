@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Screens — Signage Portal</title>
+<title>My Screens - Signage Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -248,22 +248,30 @@ function loadScreens() {
       sidebar.innerHTML = '<div class="screens-loading-msg">No screens found.</div>';
       return;
     }
-        sidebar.innerHTML = allScreens.map(function(s) {
-      var statusColor = s.online ? 'var(--success)' : 'var(--error)';
-      if (s.updating) statusColor = 'var(--warning)';
-      var ss = encodeURIComponent(s.screenshot_url || '');
-      return '<button class="screen-btn" id="sbtn-' + s.id + '" onclick="selectScreen(' + s.id + ',\'' + escHtml(s.name) + '',' + s.online + ',\'' + ss + '')'  + '">'
-        + '<div class="screen-status-dot" style="background:' + statusColor + ';box-shadow:0 0 6px ' + statusColor + '"></div>'
+    sidebar.innerHTML = allScreens.map(function(s) {
+      var color = s.online ? 'var(--success)' : 'var(--error)';
+      if (s.updating) color = 'var(--warning)';
+      return '<button class="screen-btn" id="sbtn-' + s.id + '" data-id="' + s.id + '">'
+        + '<div class="screen-status-dot" style="background:' + color + ';box-shadow:0 0 5px ' + color + '"></div>'
         + '<span class="screen-name-text">' + escHtml(s.name || 'Screen ' + s.id) + '</span>'
         + '<span class="slide-count" id="count-' + s.id + '">...</span>'
         + '</button>';
     }).join('');
-    // Load slide counts for each screen
+    // Attach click handlers using data attributes - no inline onclick needed
+    sidebar.querySelectorAll('.screen-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var sid = Number(btn.dataset.id);
+        var screen = allScreens.find(function(s) { return s.id === sid; });
+        if (screen) selectScreen(screen.id, screen.name, screen.online, screen.screenshot_url);
+      });
+    });
     allScreens.forEach(function(s) { loadSlideCount(s.id); });
-  }).catch(function() {
+  }).catch(function(e) {
+    console.error('loadScreens error:', e);
     document.getElementById('screens-sidebar').innerHTML = '<div class="screens-loading-msg" style="color:var(--error)">Error loading screens.</div>';
   });
 }
+
 
 function loadSlideCount(screenId) {
   fetch('/api/playlist/' + screenId).then(function(r){ return r.json(); }).then(function(data) {
@@ -277,7 +285,7 @@ function loadSlideCount(screenId) {
 
 // ── Select a screen ───────────────────────────────────────
 function selectScreen(id, name, online, screenshotUrl) {
-  screenshotUrl = screenshotUrl ? decodeURIComponent(screenshotUrl) : '';
+  screenshotUrl = screenshotUrl || '';
   currentScreenId = id;
   // Update sidebar active state
   document.querySelectorAll('.screen-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -360,9 +368,6 @@ function renderPlaylist(items) {
         + durationHtml
         + '<button class="remove-btn" onclick="removeSlide(' + item.id + ')">Remove</button>'
         + '</div>'
-        + '</div>';
-    }).join('')
-    + '</div>';
         + '</div>';
     }).join('')
     + '</div>';
