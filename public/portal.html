@@ -55,6 +55,11 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .add-slide-btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border:none;border-radius:10px;cursor:pointer;transition:opacity .2s;white-space:nowrap}
 .add-slide-btn:hover{opacity:.9}
 .add-slide-btn svg{width:16px;height:16px;fill:white;flex-shrink:0}
+.push-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.push-btn:hover{border-color:var(--success);color:var(--success)}
+.push-btn svg{width:16px;height:16px;fill:currentColor;flex-shrink:0}
+.push-btn.pushing{border-color:var(--warning);color:var(--warning)}
+.push-btn.pushed{border-color:var(--success);color:var(--success)}
 
 /* Playlist */
 .playlist-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
@@ -165,6 +170,10 @@ input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
       <div class="screen-hdr">
         <h1 id="screen-title">Screen Name</h1>
         <span class="screen-online-badge" id="screen-badge">Online</span>
+        <button class="push-btn" id="push-btn" onclick="pushToScreen()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          Push to Screen
+        </button>
         <button class="add-slide-btn" onclick="openUploadModal()">
           <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           Add Slide
@@ -523,6 +532,36 @@ function formatDur(seconds) {
   var m = Math.floor(s / 60);
   var rem = s % 60;
   return m + 'm' + (rem > 0 ? ' ' + rem + 's' : '');
+}
+
+function pushToScreen() {
+  if (!currentScreenId) return;
+  var btn = document.getElementById('push-btn');
+  btn.classList.add('pushing');
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Pushing...';
+
+  fetch('/api/push/' + currentScreenId, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        btn.classList.remove('pushing');
+        btn.classList.add('pushed');
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pushed!';
+        showToast('Content pushed to screen successfully!', 'success');
+        setTimeout(function() {
+          btn.classList.remove('pushed');
+          btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Push to Screen';
+        }, 3000);
+      } else {
+        btn.classList.remove('pushing');
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Push to Screen';
+        showToast(data.error || 'Push failed.', 'error');
+      }
+    }).catch(function() {
+      btn.classList.remove('pushing');
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Push to Screen';
+      showToast('Network error.', 'error');
+    });
 }
 
 function escHtml(str) {
