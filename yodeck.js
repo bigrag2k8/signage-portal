@@ -32,7 +32,12 @@ function verifyToken(token) {
 // ── Get all screens ───────────────────────────────────────
 function getScreens(token) {
   return makeClient(token).get('/screens/').then(function(res) {
-    return res.data.results || res.data;
+    var screens = res.data.results || res.data;
+    if (screens.length > 0) {
+      console.log('Screen fields sample:', JSON.stringify(Object.keys(screens[0])));
+      console.log('Screen status sample:', JSON.stringify({name: screens[0].name, online: screens[0].online, status: screens[0].status, is_online: screens[0].is_online, player_status: screens[0].player_status, last_seen: screens[0].last_seen}));
+    }
+    return screens;
   });
 }
 
