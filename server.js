@@ -233,6 +233,18 @@ app.delete('/api/playlist/:playlistId/item/:mediaId', auth.requireClient, functi
   });
 });
 
+// Update playlist items (for duration changes)
+app.post('/api/playlist/:playlistId/update', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No token.' });
+  var items = req.body.items || [];
+  yodeck.updatePlaylist(client.yodeck_token, req.params.playlistId, items).then(function() {
+    res.json({ success: true });
+  }).catch(function(err) {
+    res.status(500).json({ error: err.message });
+  });
+});
+
 // ── Static files (after all routes) ──────────────────────
 app.use(express.static(PUBLIC));
 

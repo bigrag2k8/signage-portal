@@ -237,7 +237,14 @@ function removeItemFromPlaylist(token, playlistId, mediaId) {
   });
 }
 
+function updatePlaylist(token, playlistId, items) {
+  return makeClient(token).patch('/playlists/' + playlistId + '/', { items: items }).then(function(r) {
+    return r.data;
+  });
+}
+
 module.exports = {
+  updatePlaylist: updatePlaylist,
   verifyToken: verifyToken,
   getScreens: getScreens,
   uploadMedia: uploadMedia,
