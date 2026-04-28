@@ -243,13 +243,14 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
+  console.log('Screenshot URL:', s.screenshot_url);
   if (s.screenshot_url) {
-    ssWrap.innerHTML = '<img src="' + s.screenshot_url + '" style="max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border)">';
     ssWrap.style.display = 'block';
+    ssWrap.innerHTML = '<img src="' + s.screenshot_url + '" style="max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin-bottom:4px"><div style="font-size:11px;color:var(--muted);margin-bottom:16px">Live screen preview</div>';
   } else {
     ssWrap.style.display = 'none';
   }
-  loadPlaylist(s.id);
+    loadPlaylist(s.id);
 }
 
 function loadPlaylist(screenId) {
