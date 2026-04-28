@@ -212,11 +212,13 @@ function getScreenPlaylist(token, screenId) {
       return { screenId: screenId, screenName: screen.name, playlistId: null, items: [] };
     }
     return api.get('/playlists/' + content.source_id + '/').then(function(plRes) {
+      var items = plRes.data.items || [];
+      if (items.length > 0) console.log("Playlist item fields:", JSON.stringify(Object.keys(items[0])), "type field:", items[0].type, "media_origin:", JSON.stringify(items[0].media_origin));
       return {
         screenId: screenId,
         screenName: screen.name,
         playlistId: content.source_id,
-        items: plRes.data.items || []
+        items: items
       };
     });
   });
