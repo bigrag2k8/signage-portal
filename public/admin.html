@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><path d=%22M20 30h60v40H20z%22 fill=%22white%22 opacity=%22.9%22/></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Dashboard — Signage Portal</title>
+<title>Admin Dashboard — AITS Digital Signage</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#080810;--surface:#11111a;--surface2:#16161f;--border:#1c1c2a;--accent:#f59e0b;--glow:rgba(245,158,11,0.2);--indigo:#6366f1;--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171}
+:root{--bg:#080810;--surface:#11111a;--surface2:#16161f;--border:#1c1c2a;--accent:#f97316;--glow:rgba(249,115,22,0.2);--indigo:#6366f1;--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
 nav{position:sticky;top:0;z-index:100;background:rgba(8,8,16,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between}
 .nav-logo{font-family:'DM Serif Display',serif;font-size:18px;display:flex;align-items:center;gap:10px}
-.abadge{background:rgba(245,158,11,.15);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px;font-family:'DM Sans',sans-serif}
+.abadge{background:rgba(249,115,22,.15);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px;font-family:'DM Sans',sans-serif}
 .logout{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s}
 .logout:hover{border-color:var(--accent);color:var(--text)}
 main{max-width:1100px;margin:0 auto;padding:36px 24px 80px}
@@ -27,7 +27,7 @@ main{max-width:1100px;margin:0 auto;padding:36px 24px 80px}
 .tab-panel.active{display:block}
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .sec-hdr h2{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400}
-.btn-add{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#000;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.btn-add{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f97316,#ea580c);color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
 .btn-add:hover{opacity:.88}
 .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -61,7 +61,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--g
 .vfail{color:var(--error)}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}
 .modal-foot{display:flex;gap:10px;margin-top:24px}
-.btn-save{flex:1;background:var(--accent);color:#000;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:11px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
+.btn-save{flex:1;background:linear-gradient(135deg,#f97316,#ea580c);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:11px;border:none;border-radius:8px;cursor:pointer;transition:opacity .2s}
 .btn-save:hover{opacity:.88}
 .btn-cancel{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 20px;border-radius:8px;cursor:pointer;transition:all .2s}
 .btn-cancel:hover{border-color:var(--text);color:var(--text)}
@@ -76,7 +76,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--g
 </head>
 <body>
 <nav>
-  <div class="nav-logo">Signage Portal <span class="abadge">Admin</span></div>
+  <div class="nav-logo">AITS Digital Signage <span class="abadge">Admin</span></div>
   <a href="/admin/logout" class="logout">Sign Out</a>
 </nav>
 <main>

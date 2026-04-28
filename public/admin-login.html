@@ -3,98 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Login — Signage Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<title>Admin — AITS Digital Signage</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23f97316%22/><text y=%22.9em%22 font-size=%2250%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22white%22 x=%2250%25%22 text-anchor=%22middle%22>A</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #080810;
-    --surface: #11111a;
-    --border: #1c1c2a;
-    --accent: #f59e0b;
-    --accent-glow: rgba(245,158,11,0.25);
-    --text: #f1f1f3;
-    --muted: #6b6b7a;
-    --error: #f87171;
-  }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
-  body {
-    display: flex; align-items: center; justify-content: center; min-height: 100vh;
-    position: relative; overflow: hidden;
-  }
-  body::before {
-    content: ''; position: fixed; inset: 0;
-    background-image: linear-gradient(rgba(245,158,11,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.03) 1px, transparent 1px);
-    background-size: 48px 48px; pointer-events: none;
-  }
-  body::after {
-    content: ''; position: fixed; top: -20%; left: 50%; transform: translateX(-50%);
-    width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .card {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 380px; margin: 24px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 48px 36px; animation: fadeUp 0.5s ease;
-  }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  .logo-area { text-align: center; margin-bottom: 32px; }
-  .badge {
-    display: inline-block; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3);
-    color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; padding: 5px 12px; border-radius: 20px; margin-bottom: 14px;
-  }
-  h1 { font-family: 'DM Serif Display', serif; font-size: 24px; font-weight: 400; margin-bottom: 6px; }
-  .subtitle { font-size: 13px; color: var(--muted); }
-  .field { margin-bottom: 16px; }
-  label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 7px; letter-spacing: 0.06em; text-transform: uppercase; }
-  input[type="text"], input[type="password"] {
-    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-    padding: 11px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
-    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .btn {
-    width: 100%; padding: 12px; background: var(--accent); color: #000;
-    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; border: none;
-    border-radius: 8px; cursor: pointer; margin-top: 6px; transition: opacity 0.2s;
-  }
-  .btn:hover { opacity: 0.88; }
-  .error-msg {
-    background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3);
-    color: var(--error); border-radius: 8px; padding: 10px 14px; font-size: 13px;
-    margin-bottom: 18px; text-align: center;
-  }
-  .back-link { text-align: center; margin-top: 20px; font-size: 13px; }
-  .back-link a { color: var(--muted); text-decoration: none; }
-  .back-link a:hover { color: var(--text); }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080810;--surface:#11111a;--border:#1c1c2a;--accent:#f97316;--glow:rgba(249,115,22,0.25);--text:#f1f1f3;--muted:#6b6b7a;--error:#f87171}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(249,115,22,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(249,115,22,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+body::after{content:'';position:fixed;top:-20%;left:50%;transform:translateX(-50%);width:500px;height:500px;background:radial-gradient(circle,rgba(249,115,22,0.08) 0%,transparent 70%);pointer-events:none}
+.card{position:relative;z-index:1;width:100%;max-width:380px;margin:24px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px 36px;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.logo-area{text-align:center;margin-bottom:28px}
+.logo-icon{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:16px;margin-bottom:14px;font-size:18px;font-weight:700;color:white;letter-spacing:-0.5px;box-shadow:0 0 30px var(--glow)}
+.company-name{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-bottom:4px}
+.badge{display:inline-block;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:20px;margin-top:8px}
+.field{margin-bottom:15px}
+label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:7px;letter-spacing:.06em;text-transform:uppercase}
+input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.btn{width:100%;padding:12px;background:linear-gradient(135deg,#f97316,#ea580c);color:white;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-top:6px;transition:opacity .2s}
+.btn:hover{opacity:.88}
+.err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--error);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:18px;text-align:center;display:none}
+.back{text-align:center;margin-top:20px;font-size:13px}
+.back a{color:var(--muted);text-decoration:none}
+.back a:hover{color:var(--text)}
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo-area">
+    <div class="logo-icon">AITS</div>
+    <div class="company-name">AITS Digital Signage</div>
     <div class="badge">Admin Access</div>
-    <h1>Admin Panel</h1>
-    <p class="subtitle">Manage clients, tokens, and screens</p>
   </div>
-  <div id="error" class="error-msg" style="display:none">Invalid credentials.</div>
+  <div id="err" class="err">Invalid credentials.</div>
   <form method="POST" action="/admin/login">
-    <div class="field">
-      <label>Username</label>
-      <input type="text" name="username" required autofocus>
-    </div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" name="password" required>
-    </div>
+    <div class="field"><label>Username</label><input type="text" name="username" required autofocus></div>
+    <div class="field"><label>Password</label><input type="password" name="password" required></div>
     <button type="submit" class="btn">Sign In</button>
   </form>
-  <div class="back-link"><a href="/login">← Back to client portal</a></div>
+  <div class="back"><a href="/login">Back to client portal</a></div>
 </div>
-<script>
-  if (location.search.includes('error=1')) document.getElementById('error').style.display = 'block';
-</script>
+<script>if(location.search.includes('error=1'))document.getElementById('err').style.display='block';</script>
 </body>
 </html>

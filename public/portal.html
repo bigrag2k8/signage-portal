@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><path d=%22M20 30h60v40H20z%22 fill=%22white%22 opacity=%22.9%22/></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Screens — Signage Portal</title>
+<title>My Screens — AITS Digital Signage</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;--accent:#6366f1;--glow:rgba(99,102,241,0.25);--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171;--warning:#fbbf24}
+:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;--accent:#f97316;--glow:rgba(249,115,22,0.25);--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171;--warning:#fbbf24}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(249,115,22,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(249,115,22,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
 nav{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between}
 .nav-logo{font-family:'DM Serif Display',serif;font-size:18px;display:flex;align-items:center;gap:10px}
 .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent)}
@@ -21,7 +21,7 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .sidebar-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding:0 8px}
 .screen-btn{width:100%;text-align:left;background:none;border:none;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;transition:background .15s}
 .screen-btn:hover{background:var(--surface2)}
-.screen-btn.active{background:rgba(99,102,241,.15);color:var(--accent)}
+.screen-btn.active{background:rgba(249,115,22,.15);color:var(--accent)}
 .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .screen-name-txt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cnt-badge{font-size:11px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:10px;flex-shrink:0}
@@ -40,7 +40,7 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .btn-push:hover{border-color:var(--success);color:var(--success)}
 .btn-push.pushing{border-color:var(--warning);color:var(--warning)}
 .btn-push.pushed{border-color:var(--success);color:var(--success)}
-.btn-add{background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:white}
+.btn-add{background:linear-gradient(135deg,#f97316,#ea580c);border:none;color:white}
 .btn-add:hover{opacity:.9}
 .pl-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .pl-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
@@ -51,10 +51,10 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .playlist-empty p{font-size:14px;margin-bottom:16px}
 .slides-list{display:flex;flex-direction:column;gap:8px}
 .slide-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:border-color .15s}
-.slide-item:hover{border-color:rgba(99,102,241,.3)}
+.slide-item:hover{border-color:rgba(249,115,22,.3)}
 .order-btns{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .order-btn{background:none;border:1px solid var(--border);color:var(--muted);width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:13px;padding:0;font-family:'DM Sans',sans-serif}
-.order-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:rgba(99,102,241,.08)}
+.order-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:rgba(249,115,22,.08)}
 .order-btn:disabled{opacity:.2;cursor:not-allowed}
 .slide-num{width:24px;height:24px;background:var(--surface2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);flex-shrink:0}
 .slide-thumb{width:60px;height:40px;background:var(--surface2);border-radius:7px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)}
@@ -80,12 +80,12 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:2px 6px;transition:color .15s}
 .modal-close:hover{color:var(--text)}
 .dropzone{border:2px dashed var(--border);border-radius:10px;padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--surface2)}
-.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(99,102,241,.05)}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(249,115,22,.05)}
 .dropzone svg{width:32px;height:32px;fill:var(--muted);margin-bottom:8px}
 .dropzone h3{font-size:14px;margin-bottom:4px}
 .dropzone p{font-size:12px;color:var(--muted)}
 .dropzone .cta{margin-top:5px;color:var(--accent);font-size:12px}
-.file-sel{display:none;align-items:center;gap:10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:10px 12px}
+.file-sel{display:none;align-items:center;gap:10px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:8px;padding:10px 12px}
 .file-sel.show{display:flex}
 .file-icon-wrap{width:32px;height:32px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .file-icon-wrap svg{width:16px;height:16px;fill:white}
@@ -99,12 +99,12 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
 .field input:focus{border-color:var(--accent)}
 .modal-footer{display:flex;gap:8px;margin-top:18px}
-.upload-btn{flex:1;padding:11px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s}
+.upload-btn{flex:1;padding:11px;background:linear-gradient(135deg,#f97316,#ea580c);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s}
 .upload-btn:hover:not(:disabled){opacity:.9}
 .upload-btn:disabled{opacity:.5;cursor:not-allowed}
 .cancel-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 18px;border-radius:8px;cursor:pointer;transition:all .15s}
 .cancel-btn:hover{border-color:var(--text);color:var(--text)}
-.prog{height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0;transition:width .3s;margin-top:10px;display:none}
+.prog{height:3px;background:linear-gradient(90deg,#f97316,#ea580c);border-radius:2px;width:0;transition:width .3s;margin-top:10px;display:none}
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:14px;display:flex;align-items:center;gap:8px;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);min-width:240px;max-width:90vw}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast.success{border-color:rgba(52,211,153,.4)}
@@ -114,7 +114,7 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 </head>
 <body>
 <nav>
-  <div class="nav-logo"><div class="dot"></div>Signage Portal</div>
+  <div class="nav-logo"><div style="width:8px;height:8px;background:#f97316;border-radius:50%;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>AITS Digital Signage</div>
   <a href="/logout" class="logout">Sign Out</a>
 </nav>
 <main>
