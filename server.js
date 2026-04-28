@@ -11,8 +11,6 @@ var yodeck = require('./yodeck');
 var mailer = require('./mailer');
 var auth = require('./middleware/auth');
 
-var rateLimit = require('express-rate-limit');
-
 // Track failed login attempts per username
 var loginAttempts = {};
 var LOCKOUT_LIMIT = 5;
@@ -67,27 +65,6 @@ app.use(session({
   cookie: { maxAge: 8 * 60 * 60 * 1000 }
 }));
 
-// Rate limiter - max 20 requests per minute per IP for general routes
-var generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  message: { error: 'Too many requests, please slow down.' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Strict limiter for login routes - max 10 attempts per 15 minutes per IP
-var loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: '<html><body style="font-family:sans-serif;padding:40px;background:#0a0a0f;color:#f1f1f3"><h2>Too many login attempts</h2><p>Please wait 15 minutes before trying again.</p></body></html>',
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Apply general limiter to API routes
-app.use('/api/', generalLimiter);
-
 function sendHTML(res, file) {
   res.sendFile(path.join(PUBLIC, file));
 }
@@ -98,7 +75,7 @@ app.get('/', function(req, res) { res.redirect('/login'); });
 
 app.get('/login', function(req, res) { sendHTML(res, 'login.html'); });
 
-app.post('/login', loginLimiter, function(req, res) {
+app.post('/login', function(req, res) {
   var username = (req.body.username || '').trim();
   var password = req.body.password;
 
@@ -223,7 +200,7 @@ app.post('/api/publish', auth.requireClient, upload.single('file'), function(req
 
 app.get('/admin/login', function(req, res) { sendHTML(res, 'admin-login.html'); });
 
-app.post('/admin/login', loginLimiter, function(req, res) {
+app.post('/admin/login', function(req, res) {
   if (req.body.username === process.env.ADMIN_USERNAME && req.body.password === process.env.ADMIN_PASSWORD) {
     req.session.isAdmin = true;
     return res.redirect('/admin');
