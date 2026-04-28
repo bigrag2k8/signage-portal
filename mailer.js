@@ -13,6 +13,10 @@ function sendMail(to, subject, html) {
     return Promise.resolve();
   }
 
+  console.log('Sending email to:', to);
+  console.log('From:', fromEmail);
+  console.log('API Key (first 8):', apiKey.substring(0, 8) + '...');
+
   return axios.post(SMTP2GO_API_URL, {
     api_key: apiKey,
     to: [to],
@@ -20,10 +24,11 @@ function sendMail(to, subject, html) {
     subject: subject,
     html_body: html
   }).then(function(res) {
-    console.log('Email sent:', res.data.data && res.data.data.succeeded);
+    console.log('Email API response:', JSON.stringify(res.data));
   }).catch(function(e) {
     var err = e.response && e.response.data;
-    console.error('Email failed:', JSON.stringify(err || e.message));
+    console.error('Email API error status:', e.response && e.response.status);
+    console.error('Email API error body:', JSON.stringify(err || e.message));
     throw e;
   });
 }
