@@ -55,6 +55,7 @@ var upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 }
 });
 
+app.set("trust proxy", 1); // Required for Railway/reverse proxy
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
