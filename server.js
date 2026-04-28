@@ -1,5 +1,36 @@
-require('dotenv').config();
-var express = require('express');
+// Force password change on first login
+app.get('/change-password', auth.requireClient, function(req, res) {
+  sendHTML(res, 'change-password.html');
+});
+
+app.post('/change-password', auth.requireClient, function(req, res) {
+  var newPassword = req.body.newPassword;
+  var confirmPassword = req.body.confirmPassword;
+
+  if (!newPassword || newPassword.length < 8) {
+    return res.redirect('/change-password?error=short');
+  }
+  if (newPassword !== confirmPassword) {
+    return res.redirect('/change-password?error=mismatch');
+  }
+
+  var client = db.getClient(req.session.clientId);
+  bcrypt.hash(newPassword, 10, function(err, hashed) {
+    db.updateClient(client.id, {
+      name: client.name,
+      email: client.email,
+      username: client.username,
+      password: hashed,
+      yodeck_token: client.yodeck_token,
+      assigned_screens: JSON.parse(client.assigned_screens || '[]'),
+      active: client.active,
+      must_change_password: false
+    });
+    res.redirect('/portal');
+  });
+});
+
+// -- Admin routes ──────────────────────────────────────────;
 var session = require('express-session');
 var FileStore = require('session-file-store')(session);
 var bcrypt = require('bcryptjs');
