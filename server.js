@@ -256,43 +256,70 @@ app.post('/admin/login', function(req, res) {
 app.get('/admin/logout', function(req, res) { req.session.destroy(); res.redirect('/admin/login'); });
 app.get('/admin', auth.requireAdmin, function(req, res) { sendHTML(res, 'admin.html'); });
 
-app.get('/admin/api/clients', auth.requireAdmin, function(req, res) {
-  var clients = db.getAllClients().map(function(c) {
-    return { id: c.id, name: c.name, email: c.email, username: c.username, yodeck_token: c.yodeck_token, assigned_screens: c.assigned_screens, active: c.active, created_at: c.created_at };
+// ── Companies ─────────────────────────────────────────────
+app.get('/admin/api/companies', auth.requireAdmin, function(req, res) {
+  var companies = db.getAllCompanies();
+  // Attach user count to each company
+  var result = companies.map(function(c) {
+    var users = db.getUsersByCompany(c.id);
+    return Object.assign({}, c, { user_count: users.length });
   });
-  res.json(clients);
+  res.json(result);
 });
 
-app.post('/admin/api/clients', auth.requireAdmin, function(req, res) {
+app.post('/admin/api/companies', auth.requireAdmin, function(req, res) {
   var data = req.body;
-  if (!data.password) return res.status(400).json({ error: 'Password is required.' });
-  var all = db.getAllClients();
-  if (all.find(function(c) { return c.username === data.username; })) return res.status(400).json({ error: 'Username already exists.' });
-  if (all.find(function(c) { return c.email === data.email; })) return res.status(400).json({ error: 'Email already exists.' });
+  if (!data.name) return res.status(400).json({ error: 'Company name is required.' });
+  var result = db.createCompany({ name: data.name, yodeck_token: data.yodeck_token, assigned_screens: data.assigned_screens });
+  res.json({ success: true, id: result.id });
+});
+
+app.put('/admin/api/companies/:id', auth.requireAdmin, function(req, res) {
+  var data = req.body;
+  db.updateCompany(req.params.id, { name: data.name, yodeck_token: data.yodeck_token, assigned_screens: data.assigned_screens, active: data.active });
+  res.json({ success: true });
+});
+
+app.delete('/admin/api/companies/:id', auth.requireAdmin, function(req, res) {
+  db.deleteCompany(req.params.id);
+  res.json({ success: true });
+});
+
+// ── Users ──────────────────────────────────────────────────
+app.get('/admin/api/companies/:companyId/users', auth.requireAdmin, function(req, res) {
+  var users = db.getUsersByCompany(req.params.companyId).map(function(u) {
+    return { id: u.id, company_id: u.company_id, name: u.name, email: u.email, username: u.username, active: u.active, created_at: u.created_at };
+  });
+  res.json(users);
+});
+
+app.post('/admin/api/companies/:companyId/users', auth.requireAdmin, function(req, res) {
+  var data = req.body;
+  if (!data.username || !data.password) return res.status(400).json({ error: 'Username and password are required.' });
   bcrypt.hash(data.password, 10, function(err, hashed) {
-    var result = db.createClient({ name: data.name, email: data.email, username: data.username, password: hashed, yodeck_token: data.yodeck_token, assigned_screens: data.assigned_screens });
+    var result = db.createUser({ company_id: req.params.companyId, name: data.name, email: data.email, username: data.username, password: hashed });
+    if (result.error) return res.status(400).json({ error: result.error });
     mailer.sendWelcomeEmail({ clientName: data.name, clientEmail: data.email, username: data.username, password: data.password })
       .catch(function(e) { console.warn('Welcome email failed:', e.message); });
-    res.json({ id: result.lastInsertRowid, name: data.name, email: data.email, username: data.username });
+    res.json({ success: true, id: result.id });
   });
 });
 
-app.put('/admin/api/clients/:id', auth.requireAdmin, function(req, res) {
+app.put('/admin/api/users/:id', auth.requireAdmin, function(req, res) {
   var data = req.body;
-  var id = req.params.id;
   if (data.password) {
     bcrypt.hash(data.password, 10, function(err, hashed) {
-      db.updateClient(id, { name: data.name, email: data.email, username: data.username, password: hashed, yodeck_token: data.yodeck_token, assigned_screens: data.assigned_screens, active: data.active, must_change_password: false });
+      db.updateUser(req.params.id, { name: data.name, email: data.email, username: data.username, password: hashed, active: data.active, must_change_password: true });
       res.json({ success: true });
     });
   } else {
-    db.updateClient(id, { name: data.name, email: data.email, username: data.username, password: null, yodeck_token: data.yodeck_token, assigned_screens: data.assigned_screens, active: data.active, must_change_password: false });
+    db.updateUser(req.params.id, { name: data.name, email: data.email, username: data.username, active: data.active, must_change_password: false });
     res.json({ success: true });
   }
 });
 
-app.delete('/admin/api/clients/:id', auth.requireAdmin, function(req, res) {
-  db.deleteClient(req.params.id);
+app.delete('/admin/api/users/:id', auth.requireAdmin, function(req, res) {
+  db.deleteUser(req.params.id);
   res.json({ success: true });
 });
 
