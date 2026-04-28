@@ -269,6 +269,25 @@ app.post('/api/playlist/:playlistId/update', auth.requireClient, function(req, r
   });
 });
 
+
+// Get fresh single screen data with live screenshot URL
+app.get('/api/screen/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No token.' });
+  yodeck.getScreens(client.yodeck_token).then(function(screens) {
+    var screen = screens.find(function(s) { return String(s.id) === String(req.params.screenId); });
+    if (!screen) return res.status(404).json({ error: 'Screen not found.' });
+    res.json({
+      id: screen.id,
+      name: screen.name,
+      online: screen.state && screen.state.online === true,
+      screenshot_url: screen.screenshot_url || null
+    });
+  }).catch(function(e) {
+    res.status(500).json({ error: e.message });
+  });
+});
+
 // ── Static files (after all routes) ──────────────────────
 app.use(express.static(PUBLIC));
 
