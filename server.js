@@ -277,6 +277,12 @@ app.get('/api/screen/:screenId', auth.requireClient, function(req, res) {
   yodeck.getScreens(client.yodeck_token).then(function(screens) {
     var screen = screens.find(function(s) { return String(s.id) === String(req.params.screenId); });
     if (!screen) return res.status(404).json({ error: 'Screen not found.' });
+    console.log('Screen data for screenshot:', JSON.stringify({
+      id: screen.id,
+      name: screen.name,
+      screenshot_url: screen.screenshot_url,
+      all_keys: Object.keys(screen)
+    }));
     res.json({
       id: screen.id,
       name: screen.name,
