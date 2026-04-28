@@ -244,9 +244,7 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
-  // Fetch fresh screenshot URL
-  ssWrap.style.cssText = 'display:block;margin-bottom:20px';
-  loadScreenshot(s.id);
+  ssWrap.style.display = "none";
     loadPlaylist(s.id);
 }
 
@@ -273,7 +271,8 @@ function renderPlaylist(items) {
   var html = '<div class="slides-list">';
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
-    var isVideo = item.media_origin && item.media_origin.type === 'video';
+    var name = item.name || '';
+    var isVideo = /\.(mp4|mov|avi|mkv|webm|flv|wmv|3gp|m4v)$/i.test(name);
     var dur = item.duration || 10;
     var thumb = item.thumbnail_url
       ? '<img src="' + item.thumbnail_url + '" alt="">'
@@ -446,29 +445,7 @@ function uploadSlide() {
   });
 }
 
-function loadScreenshot(screenId) {
-  var ssWrap = document.getElementById('screenshot-wrap');
-  ssWrap.style.display = 'block';
-  ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview</div>'
-    + '<div style="width:100%;max-width:480px;height:60px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px" id="ss-box">'
-    + '<span style="color:var(--muted);font-size:13px">Loading...</span></div>';
-
-  fetch('/api/screen/' + screenId).then(function(r) { return r.json(); }).then(function(data) {
-    var box = document.getElementById('ss-box');
-    if (!box) return;
-    if (data.screenshot_url) {
-      box.innerHTML = '<a href="' + data.screenshot_url + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:white;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600">'
-        + '<svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:white"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'
-        + 'View Live Screenshot</a>'
-        + '<button onclick="loadScreenshot(' + screenId + ')" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit">Refresh</button>';
-    } else {
-      box.innerHTML = '<span style="color:var(--muted);font-size:13px">No screenshot available yet</span>';
-    }
-  }).catch(function() {
-    var box = document.getElementById('ss-box');
-    if (box) box.innerHTML = '<span style="color:var(--muted);font-size:13px">Could not load preview</span>';
-  });
-}
+// Screenshot removed - Yodeck S3 bucket is private, no public access available
 
 function fmtBytes(b) {
   if (b < 1024) return b + ' B';
