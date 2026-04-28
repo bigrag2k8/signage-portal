@@ -244,28 +244,9 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
-  // Fetch fresh screenshot URL (S3 URLs expire quickly)
+  // Fetch fresh screenshot URL
   ssWrap.style.cssText = 'display:block;margin-bottom:20px';
-  ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview</div><div style="width:100%;max-width:480px;height:120px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px" id="ss-loading">Loading preview...</div>';
-  fetch('/api/screen/' + s.id).then(function(r) { return r.json(); }).then(function(fresh) {
-    if (fresh.screenshot_url) {
-      var img = new Image();
-      img.onload = function() {
-        var el = document.getElementById('ss-loading');
-        if (el) el.outerHTML = '<img src="' + fresh.screenshot_url + '" style="width:100%;max-width:480px;height:auto;border-radius:10px;border:1px solid var(--border);display:block">';
-      };
-      img.onerror = function() {
-        var el = document.getElementById('ss-loading');
-        if (el) el.textContent = 'Preview unavailable';
-      };
-      img.src = fresh.screenshot_url;
-    } else {
-      var el = document.getElementById('ss-loading');
-      if (el) el.textContent = 'No preview available';
-    }
-  }).catch(function() {
-    ssWrap.style.display = 'none';
-  });
+  loadScreenshot(s.id);
     loadPlaylist(s.id);
 }
 
@@ -462,6 +443,30 @@ function uploadSlide() {
     showToast('Network error.', 'error');
     btn.disabled = false;
     btn.textContent = 'Upload & Add to Playlist';
+  });
+}
+
+function loadScreenshot(screenId) {
+  var ssWrap = document.getElementById('screenshot-wrap');
+  ssWrap.style.display = 'block';
+  ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview <button onclick="loadScreenshot(' + screenId + ')" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;margin-left:8px">Refresh</button></div>'
+    + '<div style="width:100%;max-width:480px;height:100px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px" id="ss-box">Loading preview...</div>';
+
+  fetch('/api/screen/' + screenId).then(function(r) { return r.json(); }).then(function(data) {
+    var box = document.getElementById('ss-box');
+    if (!box) return;
+    if (data.screenshot_url) {
+      var img = new Image();
+      img.style.cssText = 'width:100%;max-width:480px;height:auto;border-radius:10px;border:1px solid var(--border);display:block';
+      img.onload = function() { if (box) box.outerHTML = img.outerHTML; };
+      img.onerror = function() { if (box) box.innerHTML = 'Preview not yet available — try refreshing in a moment'; };
+      img.src = data.screenshot_url;
+    } else {
+      box.innerHTML = 'No preview yet. Push content to screen first, then refresh.';
+    }
+  }).catch(function() {
+    var box = document.getElementById('ss-box');
+    if (box) box.innerHTML = 'Could not load preview.';
   });
 }
 
