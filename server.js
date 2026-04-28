@@ -270,6 +270,26 @@ app.post('/api/playlist/:playlistId/update', auth.requireClient, function(req, r
 });
 
 
+// Proxy screenshot - fetch from S3 server-side to avoid CORS/auth issues
+app.get('/api/screenshot/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).send('No token');
+  var axios = require('axios');
+  yodeck.getScreens(client.yodeck_token).then(function(screens) {
+    var screen = screens.find(function(s) { return String(s.id) === String(req.params.screenId); });
+    if (!screen || !screen.screenshot_url) return res.status(404).send('No screenshot');
+    return axios.get(screen.screenshot_url, { responseType: 'arraybuffer', timeout: 10000 })
+      .then(function(r) {
+        res.set('Content-Type', r.headers['content-type'] || 'image/png');
+        res.set('Cache-Control', 'no-cache');
+        res.send(r.data);
+      });
+  }).catch(function(e) {
+    console.log('Screenshot proxy error:', e.message);
+    res.status(404).send('Screenshot unavailable');
+  });
+});
+
 // Get fresh single screen data with live screenshot URL
 app.get('/api/screen/:screenId', auth.requireClient, function(req, res) {
   var client = db.getClient(req.session.clientId);
@@ -277,17 +297,11 @@ app.get('/api/screen/:screenId', auth.requireClient, function(req, res) {
   yodeck.getScreens(client.yodeck_token).then(function(screens) {
     var screen = screens.find(function(s) { return String(s.id) === String(req.params.screenId); });
     if (!screen) return res.status(404).json({ error: 'Screen not found.' });
-    console.log('Screen data for screenshot:', JSON.stringify({
-      id: screen.id,
-      name: screen.name,
-      screenshot_url: screen.screenshot_url,
-      all_keys: Object.keys(screen)
-    }));
     res.json({
       id: screen.id,
       name: screen.name,
       online: screen.state && screen.state.online === true,
-      screenshot_url: screen.screenshot_url || null
+      screenshot_url: screen.screenshot_url ? '/api/screenshot/' + screen.id : null
     });
   }).catch(function(e) {
     res.status(500).json({ error: e.message });
