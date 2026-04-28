@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><path d=%22M20 30h60v40H20z%22 fill=%22white%22 opacity=%22.9%22/></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Screens — Signage Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -243,13 +244,28 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
-  console.log('Screenshot URL:', s.screenshot_url);
-  if (s.screenshot_url) {
-    ssWrap.style.cssText = 'display:block;margin-bottom:20px';
-    ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview</div><img src="' + s.screenshot_url + '" style="width:100%;max-width:480px;height:auto;border-radius:10px;border:1px solid var(--border);display:block">';
-  } else {
+  // Fetch fresh screenshot URL (S3 URLs expire quickly)
+  ssWrap.style.cssText = 'display:block;margin-bottom:20px';
+  ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview</div><div style="width:100%;max-width:480px;height:120px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px" id="ss-loading">Loading preview...</div>';
+  fetch('/api/screen/' + s.id).then(function(r) { return r.json(); }).then(function(fresh) {
+    if (fresh.screenshot_url) {
+      var img = new Image();
+      img.onload = function() {
+        var el = document.getElementById('ss-loading');
+        if (el) el.outerHTML = '<img src="' + fresh.screenshot_url + '" style="width:100%;max-width:480px;height:auto;border-radius:10px;border:1px solid var(--border);display:block">';
+      };
+      img.onerror = function() {
+        var el = document.getElementById('ss-loading');
+        if (el) el.textContent = 'Preview unavailable';
+      };
+      img.src = fresh.screenshot_url;
+    } else {
+      var el = document.getElementById('ss-loading');
+      if (el) el.textContent = 'No preview available';
+    }
+  }).catch(function() {
     ssWrap.style.display = 'none';
-  }
+  });
     loadPlaylist(s.id);
 }
 
