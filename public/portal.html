@@ -243,18 +243,10 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   var ssWrap = document.getElementById('screenshot-wrap');
+  console.log('Screenshot URL:', s.screenshot_url);
   if (s.screenshot_url) {
-    var img = document.createElement('img');
-    img.src = s.screenshot_url;
-    img.style.cssText = 'max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border);margin-bottom:4px';
-    img.onerror = function() { ssWrap.style.display = 'none'; };
-    var caption = document.createElement('div');
-    caption.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:16px';
-    caption.textContent = 'Live screen preview';
-    ssWrap.innerHTML = '';
-    ssWrap.appendChild(img);
-    ssWrap.appendChild(caption);
     ssWrap.style.display = 'block';
+    ssWrap.innerHTML = '<img src="' + s.screenshot_url + '" style="max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin-bottom:4px"><div style="font-size:11px;color:var(--muted);margin-bottom:16px">Live screen preview</div>';
   } else {
     ssWrap.style.display = 'none';
   }
