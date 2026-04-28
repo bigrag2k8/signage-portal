@@ -245,8 +245,8 @@ function selectScreen(s) {
   var ssWrap = document.getElementById('screenshot-wrap');
   console.log('Screenshot URL:', s.screenshot_url);
   if (s.screenshot_url) {
-    ssWrap.style.display = 'block';
-    ssWrap.innerHTML = '<img src="' + s.screenshot_url + '" style="max-width:320px;width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin-bottom:4px"><div style="font-size:11px;color:var(--muted);margin-bottom:16px">Live screen preview</div>';
+    ssWrap.style.cssText = 'display:block;margin-bottom:20px';
+    ssWrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Live Preview</div><img src="' + s.screenshot_url + '" style="width:100%;max-width:480px;height:auto;border-radius:10px;border:1px solid var(--border);display:block">';
   } else {
     ssWrap.style.display = 'none';
   }
