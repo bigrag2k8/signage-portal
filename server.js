@@ -117,16 +117,7 @@ app.post('/change-password', auth.requireClient, function(req, res) {
 
   var client = db.getClient(req.session.clientId);
   bcrypt.hash(newPassword, 10, function(err, hashed) {
-    db.updateClient(client.id, {
-      name: client.name,
-      email: client.email,
-      username: client.username,
-      password: hashed,
-      yodeck_token: client.yodeck_token,
-      assigned_screens: JSON.parse(client.assigned_screens || '[]'),
-      active: client.active,
-      must_change_password: false
-    });
+    db.updateClientPassword(client.id, hashed, false);
     res.redirect('/portal');
   });
 });
