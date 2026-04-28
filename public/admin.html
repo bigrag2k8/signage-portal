@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><path d=%22M20 30h60v40H20z%22 fill=%22white%22 opacity=%22.9%22/></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard — Signage Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -119,7 +120,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--g
     <div class="field"><label>Username</label><input type="text" id="f-username" placeholder="acme"></div>
     <div class="field">
       <label>Password <span id="pw-note" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></label>
-      <input type="text" id="f-password" placeholder="Set a strong password">
+      <input type="text" id="f-password" placeholder="Min 8 chars, 1 number, 1 uppercase">
+      <div class="hint">Client will be prompted to change this on first login.</div>
     </div>
     <div class="field">
       <label>Yodeck API Token</label>
