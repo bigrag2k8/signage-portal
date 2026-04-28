@@ -11,6 +11,42 @@ var yodeck = require('./yodeck');
 var mailer = require('./mailer');
 var auth = require('./middleware/auth');
 
+var rateLimit = require('express-rate-limit');
+
+// Track failed login attempts per username
+var loginAttempts = {};
+var LOCKOUT_LIMIT = 5;
+var LOCKOUT_MINUTES = 15;
+
+function getAttempts(username) {
+  var key = username.toLowerCase();
+  if (!loginAttempts[key]) loginAttempts[key] = { count: 0, lockedUntil: null };
+  return loginAttempts[key];
+}
+
+function recordFailedAttempt(username) {
+  var a = getAttempts(username);
+  a.count++;
+  if (a.count >= LOCKOUT_LIMIT) {
+    a.lockedUntil = Date.now() + (LOCKOUT_MINUTES * 60 * 1000);
+    console.log('Account locked:', username, 'until', new Date(a.lockedUntil).toISOString());
+  }
+}
+
+function resetAttempts(username) {
+  var key = username.toLowerCase();
+  loginAttempts[key] = { count: 0, lockedUntil: null };
+}
+
+function isLocked(username) {
+  var a = getAttempts(username);
+  if (a.lockedUntil && Date.now() < a.lockedUntil) return true;
+  if (a.lockedUntil && Date.now() >= a.lockedUntil) {
+    resetAttempts(username); // Auto-unlock after lockout period
+  }
+  return false;
+}
+
 var app = express();
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -30,6 +66,27 @@ app.use(session({
   cookie: { maxAge: 8 * 60 * 60 * 1000 }
 }));
 
+// Rate limiter - max 20 requests per minute per IP for general routes
+var generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Strict limiter for login routes - max 10 attempts per 15 minutes per IP
+var loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: '<html><body style="font-family:sans-serif;padding:40px;background:#0a0a0f;color:#f1f1f3"><h2>Too many login attempts</h2><p>Please wait 15 minutes before trying again.</p></body></html>',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Apply general limiter to API routes
+app.use('/api/', generalLimiter);
+
 function sendHTML(res, file) {
   res.sendFile(path.join(PUBLIC, file));
 }
@@ -40,15 +97,36 @@ app.get('/', function(req, res) { res.redirect('/login'); });
 
 app.get('/login', function(req, res) { sendHTML(res, 'login.html'); });
 
-app.post('/login', function(req, res) {
-  var username = req.body.username;
+app.post('/login', loginLimiter, function(req, res) {
+  var username = (req.body.username || '').trim();
   var password = req.body.password;
+
+  // Check if account is locked
+  if (isLocked(username)) {
+    return res.redirect('/login?error=locked');
+  }
+
   var client = db.getClientByUsername(username);
-  if (!client) return res.redirect('/login?error=1');
+  if (!client) {
+    recordFailedAttempt(username);
+    return res.redirect('/login?error=1');
+  }
+
   bcrypt.compare(password, client.password, function(err, ok) {
-    if (!ok) return res.redirect('/login?error=1');
+    if (!ok) {
+      recordFailedAttempt(username);
+      var a = getAttempts(username);
+      var remaining = LOCKOUT_LIMIT - a.count;
+      if (remaining <= 0) return res.redirect('/login?error=locked');
+      return res.redirect('/login?error=1&attempts=' + a.count);
+    }
+    resetAttempts(username);
     req.session.clientId = client.id;
     req.session.clientName = client.name;
+    // Check if password change required
+    if (client.must_change_password) {
+      return res.redirect('/change-password');
+    }
     res.redirect('/portal');
   });
 });
@@ -144,7 +222,7 @@ app.post('/api/publish', auth.requireClient, upload.single('file'), function(req
 
 app.get('/admin/login', function(req, res) { sendHTML(res, 'admin-login.html'); });
 
-app.post('/admin/login', function(req, res) {
+app.post('/admin/login', loginLimiter, function(req, res) {
   if (req.body.username === process.env.ADMIN_USERNAME && req.body.password === process.env.ADMIN_PASSWORD) {
     req.session.isAdmin = true;
     return res.redirect('/admin');

@@ -38,6 +38,7 @@ var dbHelper = {
       yodeck_token: data.yodeck_token || null,
       assigned_screens: JSON.stringify(data.assigned_screens || []),
       active: 1,
+      must_change_password: 1,
       created_at: new Date().toISOString()
     };
     db.get('clients').push(client).write();
@@ -52,7 +53,8 @@ var dbHelper = {
       username: data.username,
       yodeck_token: data.yodeck_token || null,
       assigned_screens: JSON.stringify(data.assigned_screens || []),
-      active: data.active ? 1 : 0
+      active: data.active ? 1 : 0,
+      must_change_password: data.must_change_password ? 1 : 0
     };
     if (data.password) updates.password = data.password;
     db.get('clients').find({ id: Number(id) }).assign(updates).write();
