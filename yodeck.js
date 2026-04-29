@@ -213,12 +213,30 @@ function getScreenPlaylist(token, screenId) {
     }
     return api.get('/playlists/' + content.source_id + '/').then(function(plRes) {
       var items = plRes.data.items || [];
-      return {
-        screenId: screenId,
-        screenName: screen.name,
-        playlistId: content.source_id,
-        items: items
-      };
+      // Fetch media details for each item to get thumbnails
+      var promises = items.map(function(item) {
+        return api.get('/media/' + item.id + '/').then(function(mRes) {
+          var media = mRes.data;
+          if (media && Object.keys(media).length > 0) {
+            console.log("Media fields sample:", JSON.stringify(Object.keys(media)));
+            console.log("Media URLs:", JSON.stringify({ thumbnail_url: media.thumbnail_url, file_url: media.file_url, preview_url: media.preview_url, url: media.url }));
+          }
+          return Object.assign({}, item, {
+            thumbnail_url: media.thumbnail_url || null,
+            media_type: media.type || null
+          });
+        }).catch(function() {
+          return item;
+        });
+      });
+      return Promise.all(promises).then(function(enriched) {
+        return {
+          screenId: screenId,
+          screenName: screen.name,
+          playlistId: content.source_id,
+          items: enriched
+        };
+      });
     });
   });
 }
