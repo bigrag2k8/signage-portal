@@ -322,17 +322,32 @@ function listEmergencyAlerts(token) {
 
 // Assigns the given alert ids to every screen the token can see, so the
 // players download the alert content and a broadcast has somewhere to land.
+// Element shape read back from an assignment made in Yodeck's own dashboard:
+// { alert: {id}, show: {id:0, source_type:'show', source_id:0, ...} } — the
+// zero-id show is Yodeck's built-in Emergency Widget. Bare ids 500 outright.
+var EMERGENCY_WIDGET_SHOW = { id: 0, source_type: 'show', source_id: 0, name: 'Emergency Widget', fit: 'crop' };
+
 function assignAlertsToScreens(token, alertIds) {
   var api = makeClient(token);
   return getScreens(token).then(function(screens) {
     return Promise.all(screens.map(function(s) {
-      return api.patch('/screens/' + s.id + '/', { emergency_alerts: alertIds })
-        .then(function() { return { screenId: s.id, name: s.name, ok: true }; })
-        .catch(function(e) {
-          var detail = e.response ? JSON.stringify(e.response.data).slice(0, 300) : e.message;
-          console.error('Alert assign failed for screen', s.id, detail);
-          return { screenId: s.id, name: s.name, ok: false, error: detail };
+      // Existing assignments (dashboard-made or ours) are kept verbatim;
+      // only alerts the screen is missing are appended.
+      return api.get('/screens/' + s.id + '/').then(function(res) {
+        var existing = res.data.emergency_alerts || [];
+        var have = {};
+        existing.forEach(function(e) { if (e.alert && e.alert.id != null) have[e.alert.id] = true; });
+        var additions = alertIds.filter(function(id) { return !have[id]; }).map(function(id) {
+          return { alert: { id: id }, show: EMERGENCY_WIDGET_SHOW };
         });
+        if (!additions.length) return { screenId: s.id, name: s.name, ok: true, added: 0 };
+        return api.patch('/screens/' + s.id + '/', { emergency_alerts: existing.concat(additions) })
+          .then(function() { return { screenId: s.id, name: s.name, ok: true, added: additions.length }; });
+      }).catch(function(e) {
+        var detail = e.response ? JSON.stringify(e.response.data).slice(0, 300) : e.message;
+        console.error('Alert assign failed for screen', s.id, detail);
+        return { screenId: s.id, name: s.name, ok: false, error: detail };
+      });
     }));
   });
 }
