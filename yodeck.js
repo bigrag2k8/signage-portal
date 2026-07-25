@@ -361,13 +361,22 @@ function broadcastAlert(token, alertId, overrides) {
     });
 }
 
-// The broadcast POST returns a broadcast_hash identifying the running
-// broadcast (and an end_time — Yodeck applies a 2h default duration its
-// schema never mentions). Plain DELETE on /broadcast/ 405s, so cancel
-// targets the instance by hash; without a hash there is nothing to try.
-function cancelAlertBroadcast(token, alertId, broadcastHash) {
-  if (!broadcastHash) return Promise.reject(new Error('No broadcast hash recorded for this alert'));
-  return makeClient(token).delete('/emergency-alerts/' + alertId + '/broadcast/' + broadcastHash + '/')
+// Running broadcasts live in their own collection, keyed by broadcast_hash —
+// found via the root probe after cancels under the alert type 405'd/404'd.
+// This also sees broadcasts fired from Yodeck's own dashboard.
+function listActiveBroadcasts(token) {
+  return makeClient(token).get('/emergency-alerts/broadcasts/').then(function(res) {
+    var list = (res.data && (res.data.results || res.data)) || [];
+    // Defensive: only entries that have not already ended.
+    return list.filter(function(b) {
+      return !b.end_time || new Date(b.end_time).getTime() > Date.now();
+    });
+  });
+}
+
+function cancelAlertBroadcast(token, broadcastHash) {
+  if (!broadcastHash) return Promise.reject(new Error('No broadcast hash available'));
+  return makeClient(token).delete('/emergency-alerts/broadcasts/' + broadcastHash + '/')
     .then(function(res) {
       console.log('Broadcast cancel response:', res.status);
       return { cancelled: true };
@@ -572,5 +581,6 @@ module.exports = {
   listEmergencyAlerts: listEmergencyAlerts,
   assignAlertsToScreens: assignAlertsToScreens,
   broadcastAlert: broadcastAlert,
-  cancelAlertBroadcast: cancelAlertBroadcast
+  cancelAlertBroadcast: cancelAlertBroadcast,
+  listActiveBroadcasts: listActiveBroadcasts
 };

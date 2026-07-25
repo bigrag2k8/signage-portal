@@ -475,8 +475,40 @@ setInterval(function() { sweepExpiredTakeovers(); sweepEndedAlerts(); }, 30 * 10
 app.get('/api/alerts', auth.requireClient, function(req, res) {
   var client = db.getClient(req.session.clientId);
   if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
-  yodeck.listEmergencyAlerts(client.yodeck_token).then(function(alerts) {
-    res.json({ alerts: alerts, active: db.getActiveAlert(client.company_id) || null });
+  Promise.all([
+    yodeck.listEmergencyAlerts(client.yodeck_token),
+    yodeck.listActiveBroadcasts(client.yodeck_token).catch(function(e) {
+      console.warn('Broadcast list failed:', e.message);
+      return null; // reconcile only when Yodeck answered
+    })
+  ]).then(function(r) {
+    var alerts = r[0], broadcasts = r[1];
+    var active = db.getActiveAlert(client.company_id) || null;
+
+    // Yodeck is the source of truth for what is actually broadcasting —
+    // including alerts fired from their dashboard, which our own records
+    // know nothing about.
+    if (broadcasts !== null) {
+      var live = broadcasts[0] || null;
+      if (live && (!active || active.broadcast_hash !== live.broadcast_hash)) {
+        var data = live.emergency_data || {};
+        active = db.setActiveAlert({
+          company_id: client.company_id, alert_id: 0,
+          alert_name: data.category || 'emergency',
+          category: data.category || '', headline: data.headline || 'Emergency alert',
+          broadcast_hash: live.broadcast_hash, ends_at: live.end_time,
+          user_id: 0, user_name: 'Yodeck dashboard'
+        });
+        db.logAlert({ company_id: client.company_id, action: 'discovered', alert_id: 0,
+                      alert_name: active.alert_name, headline: active.headline, user_name: '(sync)' });
+      } else if (!live && active) {
+        db.clearActiveAlert(client.company_id);
+        db.logAlert({ company_id: client.company_id, action: 'ended-remotely', alert_id: active.alert_id,
+                      alert_name: active.alert_name, user_name: '(sync)' });
+        active = null;
+      }
+    }
+    res.json({ alerts: alerts, active: active });
   }).catch(function(e) {
     console.error('Alert list failed:', e.message);
     res.status(500).json({ error: 'Could not load alert types.' });
@@ -569,7 +601,17 @@ app.delete('/api/alerts/broadcast', auth.requireClient, function(req, res) {
   var active = db.getActiveAlert(client.company_id);
   if (!active) return res.status(404).json({ error: 'No alert is active.' });
 
-  yodeck.cancelAlertBroadcast(client.yodeck_token, active.alert_id, active.broadcast_hash).then(function() {
+  // Records from before hash storage existed have no handle; ask Yodeck for
+  // the running broadcast rather than giving up.
+  var hashP = active.broadcast_hash
+    ? Promise.resolve(active.broadcast_hash)
+    : yodeck.listActiveBroadcasts(client.yodeck_token).then(function(list) {
+        return list[0] && list[0].broadcast_hash;
+      });
+
+  hashP.then(function(hash) {
+    return yodeck.cancelAlertBroadcast(client.yodeck_token, hash);
+  }).then(function() {
     db.clearActiveAlert(client.company_id);
     db.logAlert({ company_id: client.company_id, action: 'cancelled', alert_id: active.alert_id,
                   alert_name: active.alert_name, user_name: client.username });
