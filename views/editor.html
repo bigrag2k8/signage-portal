@@ -72,6 +72,19 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
 .screen-opt input{width:16px;height:16px;accent-color:var(--accent)}
 .screen-opt .sdot{width:8px;height:8px;border-radius:50%}
 .screen-opt .snm{flex:1;font-size:13px;font-weight:500}
+.modal-wide{max-width:760px}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px;max-height:60vh;overflow-y:auto;padding:2px}
+.lib-card{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.lib-card:hover{border-color:var(--accent)}
+.lib-thumb{width:100%;height:92px;object-fit:cover;background:var(--surface2);display:block}
+.lib-thumb-none{width:100%;height:92px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)}
+.lib-meta{padding:8px 10px}
+.lib-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.lib-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.66);border:none;color:#fff;width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:12px;line-height:1;opacity:0;transition:opacity .15s}
+.lib-card:hover .lib-del{opacity:1}
+.lib-del:hover{background:#dc2626}
+.current-design{font-size:11px;color:var(--accent);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .modal-footer{display:flex;gap:8px;margin-top:20px}
 .mf-primary{flex:1;padding:11px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer}
 .mf-primary:hover:not(:disabled){opacity:.9}
@@ -141,6 +154,19 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
     </div>
 
     <div class="grp">
+      <div class="grp-title">Designs</div>
+      <button class="tool" onclick="openSave()">
+        <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
+        Save design
+      </button>
+      <button class="tool" onclick="openLibrary()">
+        <svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z"/></svg>
+        My designs
+      </button>
+      <div class="current-design" id="design-label"></div>
+    </div>
+
+    <div class="grp">
       <div class="grp-title">Selected item</div>
       <div class="inspector" id="inspector">
         <div class="insp-empty">Select an item on the canvas to edit it.</div>
@@ -178,6 +204,37 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
       <button class="mf-primary" id="pub-go" onclick="doPublish()">Publish Slide</button>
       <button class="mf-cancel" onclick="closePublish()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Save design modal -->
+<div class="overlay" id="save-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Save Design</h2>
+      <button class="modal-close" onclick="closeSave()">&#x2715;</button>
+    </div>
+    <div class="field">
+      <label>Design name</label>
+      <input type="text" id="save-name" placeholder="e.g. Lunch Specials board">
+    </div>
+    <div class="hint">Saved designs are shared with everyone at your company, and can be reopened and edited later.</div>
+    <div class="modal-footer">
+      <button class="mf-primary" id="save-go" onclick="doSave(false)">Save</button>
+      <button class="mf-cancel" id="save-copy" onclick="doSave(true)" style="display:none">Save as copy</button>
+      <button class="mf-cancel" onclick="closeSave()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Design library modal -->
+<div class="overlay" id="lib-modal">
+  <div class="modal modal-wide">
+    <div class="modal-hdr">
+      <h2>My Designs</h2>
+      <button class="modal-close" onclick="closeLibrary()">&#x2715;</button>
+    </div>
+    <div class="lib-grid" id="lib-grid"><div class="insp-empty">Loading designs...</div></div>
   </div>
 </div>
 
@@ -397,13 +454,157 @@ document.addEventListener('keydown', function(e){
   }
 });
 
+// ── Saved designs ─────────────────────────────────────────
+var currentDesignId = null;
+var currentDesignName = '';
+
+function designLabel() {
+  document.getElementById('design-label').textContent =
+    currentDesignId ? 'Editing: ' + currentDesignName : '';
+}
+
+// requireClient answers an expired session with a redirect to /login, which
+// arrives as HTML. Catch that here so it doesn't surface as a JSON parse error.
+function apiJSON(r) {
+  if (r.redirected || (r.url && /\/login/.test(r.url))) throw new Error('SESSION_EXPIRED');
+  return r.json();
+}
+function apiError(err, fallback) {
+  showToast(err && err.message === 'SESSION_EXPIRED'
+    ? 'Your session expired. Open /login in a new tab, sign in, then try again — your design is still here.'
+    : fallback, 'error');
+}
+
+// Object coordinates are in on-screen pixels, and the canvas is sized to fit
+// whatever window it was built in. Record those dimensions so the design can be
+// mapped onto a different-sized window when it is reopened.
+function designPayload() {
+  return { canvas: canvas.toJSON(), width: canvas.getWidth(), height: canvas.getHeight(), orientation: orientation };
+}
+
+function designThumb() {
+  try {
+    return canvas.toDataURL({ format: 'png', multiplier: Math.min(1, 260 / canvas.getWidth()) });
+  } catch (e) { return null; }
+}
+
+function openSave() {
+  document.getElementById('save-name').value = currentDesignName || '';
+  document.getElementById('save-copy').style.display = currentDesignId ? '' : 'none';
+  document.getElementById('save-go').textContent = currentDesignId ? 'Update' : 'Save';
+  document.getElementById('save-modal').classList.add('open');
+  document.getElementById('save-name').focus();
+}
+function closeSave() { document.getElementById('save-modal').classList.remove('open'); }
+
+function doSave(asCopy) {
+  var name = (document.getElementById('save-name').value || '').trim();
+  if (!name) return showToast('Give the design a name.', 'error');
+  var updating = !!currentDesignId && !asCopy;
+  var btn = document.getElementById('save-go');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  fetch(updating ? '/api/designs/' + currentDesignId : '/api/designs', {
+    method: updating ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, payload: designPayload(), thumb: designThumb() })
+  }).then(apiJSON).then(function(d){
+    btn.disabled = false;
+    if (!d.success) { btn.textContent = updating ? 'Update' : 'Save'; return showToast(d.error || 'Could not save.', 'error'); }
+    currentDesignId = d.design.id;
+    currentDesignName = d.design.name;
+    btn.textContent = 'Update';
+    designLabel();
+    closeSave();
+    showToast(updating ? 'Design updated.' : 'Design saved.', 'success');
+  }).catch(function(err){
+    btn.disabled = false; btn.textContent = updating ? 'Update' : 'Save';
+    apiError(err, 'Could not save the design.');
+  });
+}
+
+function openLibrary() {
+  document.getElementById('lib-modal').classList.add('open');
+  var grid = document.getElementById('lib-grid');
+  grid.innerHTML = '<div class="insp-empty">Loading designs...</div>';
+  fetch('/api/designs').then(apiJSON).then(function(d){
+    renderLibrary(d.designs || []);
+  }).catch(function(err){
+    grid.innerHTML = '<div class="insp-empty">Could not load designs.</div>';
+    apiError(err, 'Could not load your designs.');
+  });
+}
+function closeLibrary() { document.getElementById('lib-modal').classList.remove('open'); }
+
+function renderLibrary(list) {
+  var grid = document.getElementById('lib-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="insp-empty">No saved designs yet. Build a slide, then choose &ldquo;Save design&rdquo;.</div>';
+    return;
+  }
+  grid.innerHTML = list.map(function(d){
+    var when = new Date(d.updated_at).toLocaleDateString();
+    return '<div class="lib-card" onclick="loadDesign(' + d.id + ')">' +
+             '<button class="lib-del" title="Delete design" onclick="removeDesign(event,' + d.id + ')">&#x2715;</button>' +
+             '<img class="lib-thumb" src="/api/designs/' + d.id + '/thumb" alt="" onerror="this.outerHTML=\'<div class=&quot;lib-thumb-none&quot;>No preview</div>\'">' +
+             '<div class="lib-meta">' +
+               '<div class="lib-name">' + esc(d.name) + '</div>' +
+               '<div class="lib-sub">' + esc(d.orientation) + ' &middot; ' + esc(when) + '</div>' +
+             '</div>' +
+           '</div>';
+  }).join('');
+}
+
+function loadDesign(id) {
+  fetch('/api/designs/' + id).then(apiJSON).then(function(d){
+    if (!d.payload) return showToast(d.error || 'Could not open that design.', 'error');
+    var p = d.payload;
+    if (p.orientation && p.orientation !== orientation) {
+      orientation = p.orientation;
+      document.querySelectorAll('#orient-seg button').forEach(function(b){
+        b.classList.toggle('active', b.dataset.o === orientation);
+      });
+    }
+    buildCanvas();
+    canvas.loadFromJSON(p.canvas, function(){
+      if (p.width && p.height) rescaleTo(canvas.getWidth(), canvas.getHeight(), p.width, p.height);
+      if (canvas.backgroundImage) coverBackground(canvas.backgroundImage);
+      canvas.renderAll();
+      if (typeof canvas.backgroundColor === 'string') {
+        document.getElementById('bg-color').value = toHex(canvas.backgroundColor);
+      }
+      currentDesignId = d.design.id;
+      currentDesignName = d.design.name;
+      designLabel();
+      renderInspector(null);
+      closeLibrary();
+      showToast('Opened "' + d.design.name + '".', 'success');
+    });
+  }).catch(function(err){ apiError(err, 'Could not open that design.'); });
+}
+
+function removeDesign(ev, id) {
+  ev.stopPropagation();
+  if (!confirm('Delete this design? Everyone at your company loses it, and this cannot be undone.')) return;
+  fetch('/api/designs/' + id, { method: 'DELETE' }).then(apiJSON).then(function(d){
+    if (!d.success) return showToast(d.error || 'Could not delete.', 'error');
+    if (currentDesignId === id) { currentDesignId = null; currentDesignName = ''; designLabel(); }
+    openLibrary();
+    showToast('Design deleted.', 'success');
+  }).catch(function(err){ apiError(err, 'Could not delete that design.'); });
+}
+
 // ── Publish ───────────────────────────────────────────────
 function openPublish() {
+  var nameField = document.getElementById('pub-name');
+  if (!nameField.value && currentDesignName) nameField.value = currentDesignName;
   document.getElementById('pub-modal').classList.add('open');
   if (!screensLoaded) loadScreens();
 }
 function closePublish() { document.getElementById('pub-modal').classList.remove('open'); }
 document.getElementById('pub-modal').addEventListener('click', function(e){ if(e.target===this) closePublish(); });
+document.getElementById('save-modal').addEventListener('click', function(e){ if(e.target===this) closeSave(); });
+document.getElementById('lib-modal').addEventListener('click', function(e){ if(e.target===this) closeLibrary(); });
 
 function loadScreens() {
   fetch('/api/screens').then(function(r){return r.json();}).then(function(data){

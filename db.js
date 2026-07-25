@@ -1,20 +1,37 @@
 var low = require('lowdb');
 var FileSync = require('lowdb/adapters/FileSync');
 var path = require('path');
+var fs = require('fs');
 
 var DB_PATH = process.env.DB_PATH || path.join(__dirname, 'portal.json');
 var adapter = new FileSync(DB_PATH);
 var db = low(adapter);
+
+// Saved designs keep only their metadata in lowdb. The canvas JSON carries
+// embedded images and runs to megabytes, and lowdb rewrites this whole file on
+// every write — so a publish-log entry would rewrite every design too. The
+// heavy payload lives in its own file instead. Defaults next to the database so
+// it lands on the same mounted volume in production.
+var DESIGNS_DIR = process.env.DESIGNS_PATH || path.join(path.dirname(DB_PATH), 'designs');
+try { fs.mkdirSync(DESIGNS_DIR, { recursive: true }); } catch (e) { console.warn('Could not create designs dir:', e.message); }
+// Logged so it is obvious whether designs landed on a mounted volume or on the
+// container filesystem, where a redeploy would wipe them.
+console.log('Designs stored in:', DESIGNS_DIR);
+
+function designFile(id) { return path.join(DESIGNS_DIR, String(Number(id)) + '.json'); }
+function thumbFile(id) { return path.join(DESIGNS_DIR, String(Number(id)) + '.png'); }
 
 db.defaults({
   companies: [],
   users: [],
   clients: [], // legacy - kept for backward compat
   publish_log: [],
+  designs: [],
   _nextCompanyId: 1,
   _nextUserId: 1,
   _nextClientId: 1,
-  _nextLogId: 1
+  _nextLogId: 1,
+  _nextDesignId: 1
 }).write();
 
 // ── Migrate existing clients to companies/users if needed ──
@@ -222,6 +239,78 @@ var dbHelper = {
 
   getLog: function(limit) {
     return db.get('publish_log').orderBy(['published_at'], ['desc']).take(limit || 100).value();
+  },
+
+  // ── Saved designs ───────────────────────────────────────
+  // Metadata lives here; the canvas payload and thumbnail live in DESIGNS_DIR.
+
+  getDesignsByCompany: function(companyId) {
+    return db.get('designs').filter({ company_id: Number(companyId) }).orderBy(['updated_at'], ['desc']).value();
+  },
+
+  getDesign: function(id) {
+    return db.get('designs').find({ id: Number(id) }).value();
+  },
+
+  // Returns the stored canvas payload, or null if the file is missing/corrupt.
+  readDesignCanvas: function(id) {
+    try {
+      return JSON.parse(fs.readFileSync(designFile(id), 'utf8'));
+    } catch (e) {
+      console.warn('Could not read design', id, e.message);
+      return null;
+    }
+  },
+
+  readDesignThumb: function(id) {
+    try {
+      return fs.readFileSync(thumbFile(id));
+    } catch (e) {
+      return null;
+    }
+  },
+
+  countDesignsForCompany: function(companyId) {
+    return db.get('designs').filter({ company_id: Number(companyId) }).size().value();
+  },
+
+  createDesign: function(data) {
+    var id = db.get('_nextDesignId').value();
+    var now = new Date().toISOString();
+    // Write the payload first — a metadata row pointing at a missing file would
+    // show up in the list as a design that cannot be opened.
+    fs.writeFileSync(designFile(id), JSON.stringify(data.payload));
+    if (data.thumb) { try { fs.writeFileSync(thumbFile(id), data.thumb); } catch (e) { console.warn('Thumb write failed:', e.message); } }
+    var design = {
+      id: id,
+      company_id: Number(data.company_id),
+      created_by: Number(data.user_id),
+      created_by_name: data.user_name || '',
+      name: data.name,
+      orientation: data.orientation || 'landscape',
+      created_at: now,
+      updated_at: now
+    };
+    db.get('designs').push(design).write();
+    db.set('_nextDesignId', id + 1).write();
+    return design;
+  },
+
+  updateDesign: function(id, data) {
+    fs.writeFileSync(designFile(id), JSON.stringify(data.payload));
+    if (data.thumb) { try { fs.writeFileSync(thumbFile(id), data.thumb); } catch (e) { console.warn('Thumb write failed:', e.message); } }
+    var updates = { updated_at: new Date().toISOString() };
+    if (data.name) updates.name = data.name;
+    if (data.orientation) updates.orientation = data.orientation;
+    db.get('designs').find({ id: Number(id) }).assign(updates).write();
+    return db.get('designs').find({ id: Number(id) }).value();
+  },
+
+  deleteDesign: function(id) {
+    db.get('designs').remove({ id: Number(id) }).write();
+    [designFile(id), thumbFile(id)].forEach(function(f) {
+      try { fs.unlinkSync(f); } catch (e) { if (e.code !== 'ENOENT') console.warn('Could not remove', f, e.message); }
+    });
   }
 
 };

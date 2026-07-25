@@ -24,7 +24,9 @@ var upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 }
 });
 
-app.use(express.json());
+// Saved designs post their canvas as JSON with images embedded as data URLs,
+// which the 100kb default would reject outright.
+app.use(express.json({ limit: '12mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
@@ -233,6 +235,121 @@ app.get('/api/screen/:screenId', auth.requireClient, function(req, res) {
     if (!screen) return res.status(404).json({ error: 'Screen not found.' });
     res.json({ id: screen.id, name: screen.name, online: screen.state && screen.state.online === true, screenshot_url: screen.screenshot_url || null });
   }).catch(function(e) { res.status(500).json({ error: e.message }); });
+});
+
+// ── Saved designs ─────────────────────────────────────────
+// Designs belong to a company, so everyone at that company shares the library.
+
+var MAX_DESIGN_BYTES = 8 * 1024 * 1024;
+var MAX_DESIGNS_PER_COMPANY = 300;
+
+// Resolves the design only if it belongs to the caller's company. Answers 404
+// rather than 403 for someone else's design so ids cannot be probed.
+function findOwnedDesign(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) { res.status(401).json({ error: 'Not signed in.' }); return null; }
+  var design = db.getDesign(req.params.id);
+  if (!design || design.company_id !== client.company_id) {
+    res.status(404).json({ error: 'Design not found.' });
+    return null;
+  }
+  return { client: client, design: design };
+}
+
+// Pulls the canvas payload and thumbnail out of a request, rejecting anything
+// oversized or malformed before it reaches disk.
+function readDesignBody(req, res) {
+  var name = (req.body.name || '').trim();
+  if (!name) { res.status(400).json({ error: 'Give the design a name.' }); return null; }
+  if (name.length > 120) { res.status(400).json({ error: 'That name is too long.' }); return null; }
+  if (!req.body.payload || typeof req.body.payload !== 'object' || !req.body.payload.canvas) {
+    res.status(400).json({ error: 'Design data missing or unreadable.' });
+    return null;
+  }
+  if (Buffer.byteLength(JSON.stringify(req.body.payload)) > MAX_DESIGN_BYTES) {
+    res.status(413).json({ error: 'This design is too large to save. Try a smaller background image.' });
+    return null;
+  }
+  var thumb = null;
+  var raw = req.body.thumb;
+  if (typeof raw === 'string' && raw.indexOf('data:image/png;base64,') === 0) {
+    thumb = Buffer.from(raw.slice('data:image/png;base64,'.length), 'base64');
+    if (thumb.length > 1024 * 1024) thumb = null; // preview only; skip if oversized
+  }
+  return { name: name, payload: req.body.payload, thumb: thumb };
+}
+
+app.get('/api/designs', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) return res.status(401).json({ error: 'Not signed in.' });
+  res.json({ designs: db.getDesignsByCompany(client.company_id) });
+});
+
+app.get('/api/designs/:id', auth.requireClient, function(req, res) {
+  var found = findOwnedDesign(req, res);
+  if (!found) return;
+  var payload = db.readDesignCanvas(found.design.id);
+  if (!payload) return res.status(500).json({ error: 'This design could not be opened. Its data may be damaged.' });
+  res.json({ design: found.design, payload: payload });
+});
+
+app.get('/api/designs/:id/thumb', auth.requireClient, function(req, res) {
+  var found = findOwnedDesign(req, res);
+  if (!found) return;
+  var buf = db.readDesignThumb(found.design.id);
+  if (!buf) return res.status(404).end();
+  res.type('png').send(buf);
+});
+
+app.post('/api/designs', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) return res.status(401).json({ error: 'Not signed in.' });
+  if (db.countDesignsForCompany(client.company_id) >= MAX_DESIGNS_PER_COMPANY) {
+    return res.status(400).json({ error: 'You have reached the limit of ' + MAX_DESIGNS_PER_COMPANY + ' saved designs. Delete one first.' });
+  }
+  var body = readDesignBody(req, res);
+  if (!body) return;
+  try {
+    var design = db.createDesign({
+      company_id: client.company_id,
+      user_id: client.id,
+      user_name: client.username,
+      name: body.name,
+      orientation: req.body.payload.orientation,
+      payload: body.payload,
+      thumb: body.thumb
+    });
+    res.json({ success: true, design: design });
+  } catch (e) {
+    console.error('Design save failed:', e.message);
+    res.status(500).json({ error: 'Could not save the design.' });
+  }
+});
+
+app.put('/api/designs/:id', auth.requireClient, function(req, res) {
+  var found = findOwnedDesign(req, res);
+  if (!found) return;
+  var body = readDesignBody(req, res);
+  if (!body) return;
+  try {
+    var design = db.updateDesign(found.design.id, {
+      name: body.name,
+      orientation: req.body.payload.orientation,
+      payload: body.payload,
+      thumb: body.thumb
+    });
+    res.json({ success: true, design: design });
+  } catch (e) {
+    console.error('Design update failed:', e.message);
+    res.status(500).json({ error: 'Could not save the design.' });
+  }
+});
+
+app.delete('/api/designs/:id', auth.requireClient, function(req, res) {
+  var found = findOwnedDesign(req, res);
+  if (!found) return;
+  db.deleteDesign(found.design.id);
+  res.json({ success: true });
 });
 
 // ════════════════════════════════════════════════════════
