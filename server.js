@@ -601,17 +601,9 @@ app.delete('/api/alerts/broadcast', auth.requireClient, function(req, res) {
   var active = db.getActiveAlert(client.company_id);
   if (!active) return res.status(404).json({ error: 'No alert is active.' });
 
-  // Records from before hash storage existed have no handle; ask Yodeck for
-  // the running broadcast rather than giving up.
-  var hashP = active.broadcast_hash
-    ? Promise.resolve(active.broadcast_hash)
-    : yodeck.listActiveBroadcasts(client.yodeck_token).then(function(list) {
-        return list[0] && list[0].broadcast_hash;
-      });
-
-  hashP.then(function(hash) {
-    return yodeck.cancelAlertBroadcast(client.yodeck_token, hash);
-  }).then(function() {
+  // The broadcast resource is a singleton — DELETE ends the account's
+  // current broadcast, so no per-record handle is needed.
+  yodeck.cancelAlertBroadcast(client.yodeck_token).then(function() {
     db.clearActiveAlert(client.company_id);
     db.logAlert({ company_id: client.company_id, action: 'cancelled', alert_id: active.alert_id,
                   alert_name: active.alert_name, user_name: client.username });

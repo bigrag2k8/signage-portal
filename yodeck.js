@@ -361,22 +361,26 @@ function broadcastAlert(token, alertId, overrides) {
     });
 }
 
-// Running broadcasts live in their own collection, keyed by broadcast_hash —
-// found via the root probe after cancels under the alert type 405'd/404'd.
-// This also sees broadcasts fired from Yodeck's own dashboard.
+// /emergency-alerts/broadcasts/ is a SINGLETON — the account's current
+// broadcast as one object, not a collection (its GET has no count/results
+// wrapper, and DELETE on it with a hash appended 404s). That mirrors
+// Yodeck's UI: one broadcast state, one X to cancel it.
 function listActiveBroadcasts(token) {
   return makeClient(token).get('/emergency-alerts/broadcasts/').then(function(res) {
-    var list = (res.data && (res.data.results || res.data)) || [];
-    // Defensive: only entries that have not already ended.
+    var d = res.data;
+    var list = Array.isArray(d) ? d : (d && Array.isArray(d.results) ? d.results : (d && d.broadcast_hash ? [d] : []));
     return list.filter(function(b) {
       return !b.end_time || new Date(b.end_time).getTime() > Date.now();
     });
+  }).catch(function(e) {
+    // No active broadcast may well be a 404 on a singleton.
+    if (e.response && e.response.status === 404) return [];
+    throw e;
   });
 }
 
-function cancelAlertBroadcast(token, broadcastHash) {
-  if (!broadcastHash) return Promise.reject(new Error('No broadcast hash available'));
-  return makeClient(token).delete('/emergency-alerts/broadcasts/' + broadcastHash + '/')
+function cancelAlertBroadcast(token) {
+  return makeClient(token).delete('/emergency-alerts/broadcasts/')
     .then(function(res) {
       console.log('Broadcast cancel response:', res.status);
       return { cancelled: true };
