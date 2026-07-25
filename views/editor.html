@@ -460,6 +460,18 @@ function exportBlob() {
   });
 }
 
+// Yodeck keeps "add to playlist" and "show it now" separate. /api/publish only
+// does the former, so push each target screen the way the portal's
+// "Push to Screen" button does. Resolves with the ids that would not take it.
+function pushToScreens(ids) {
+  return Promise.all(ids.map(function(id){
+    return fetch('/api/push/' + encodeURIComponent(id), { method:'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ return d.success ? null : id; })
+      .catch(function(){ return id; });
+  })).then(function(results){ return results.filter(Boolean); });
+}
+
 function doPublish() {
   var ids = selectedScreenIds();
   if (!ids.length) return showToast('Pick at least one screen.', 'error');
@@ -486,13 +498,21 @@ function doPublish() {
     }
     return r.json();
   }).then(function(d){
-    btn.disabled = false; btn.textContent = 'Publish Slide';
-    if (d.success) {
-      showToast('Published! ' + (d.message || ''), 'success');
-      closePublish();
-    } else {
-      showToast(d.error || 'Publish failed.', 'error');
+    if (!d.success) {
+      btn.disabled = false; btn.textContent = 'Publish Slide';
+      return showToast(d.error || 'Publish failed.', 'error');
     }
+    btn.textContent = 'Pushing...';
+    return pushToScreens(ids).then(function(failed){
+      btn.disabled = false; btn.textContent = 'Publish Slide';
+      closePublish();
+      if (!failed.length) {
+        showToast('Published and pushed to ' + ids.length + ' screen' + (ids.length > 1 ? 's' : '') + '!', 'success');
+      } else {
+        // The slide is on the playlist either way — only the refresh failed.
+        showToast('Published, but ' + failed.length + ' screen' + (failed.length > 1 ? 's' : '') + ' did not take the push. Use "Push to Screen" on the portal.', 'error');
+      }
+    });
   }).catch(function(err){
     btn.disabled = false; btn.textContent = 'Publish Slide';
     if (err && err.message === 'SESSION_EXPIRED') {
