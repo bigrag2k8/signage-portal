@@ -455,6 +455,131 @@ function sweepExpiredTakeovers() {
 
 setInterval(sweepExpiredTakeovers, 30 * 1000);
 
+// ── Emergency alerts ──────────────────────────────────────
+// Native Yodeck alerts: content is pre-loaded onto each player's SD card once
+// the alert types are assigned to the screens, so firing one is instant — no
+// upload, no encode. The API has no duration field; an alert stays up until
+// cancelled, and the UI says so.
+
+app.get('/api/alerts', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  yodeck.listEmergencyAlerts(client.yodeck_token).then(function(alerts) {
+    res.json({ alerts: alerts, active: db.getActiveAlert(client.company_id) || null });
+  }).catch(function(e) {
+    console.error('Alert list failed:', e.message);
+    res.status(500).json({ error: 'Could not load alert types.' });
+  });
+});
+
+// Cheap enough to call on every portal load — reads only our own database,
+// not Yodeck.
+app.get('/api/alerts/active', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) return res.status(401).json({ error: 'Not signed in.' });
+  res.json({ active: db.getActiveAlert(client.company_id) || null });
+});
+
+// One-time setup: put every alert id onto every screen so the players
+// download the content. Without this Yodeck rejects broadcasts outright.
+app.post('/api/alerts/setup', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  yodeck.listEmergencyAlerts(client.yodeck_token).then(function(alerts) {
+    var ids = alerts.map(function(a) { return a.id; });
+    return yodeck.assignAlertsToScreens(client.yodeck_token, ids).then(function(results) {
+      var failed = results.filter(function(r) { return !r.ok; });
+      res.json({ success: failed.length === 0, assigned: ids.length,
+                 screens: results.length, failed: failed });
+    });
+  }).catch(function(e) {
+    console.error('Alert setup failed:', e.message);
+    res.status(500).json({ error: 'Could not enable alerts on your screens.' });
+  });
+});
+
+app.post('/api/alerts/:id/broadcast', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  if (req.body.confirm !== 'ALERT') {
+    return res.status(400).json({ error: 'Type ALERT in the confirmation box to broadcast.' });
+  }
+
+  var token = client.yodeck_token;
+  // The template supplies anything the caller leaves blank — the API requires
+  // all four content fields on every broadcast.
+  yodeck.listEmergencyAlerts(token).then(function(alerts) {
+    var tpl = alerts.find(function(a) { return String(a.id) === String(req.params.id); });
+    if (!tpl) return res.status(404).json({ error: 'Unknown alert type.' });
+    var body = {
+      category: tpl.category,
+      icon: tpl.icon,
+      name: tpl.name,
+      headline: (req.body.headline || tpl.headline || '').slice(0, 256),
+      description: (req.body.description || tpl.description || '').slice(0, 2048),
+      instruction: (req.body.instruction || tpl.instruction || '').slice(0, 2048)
+    };
+    if (!body.headline || !body.description || !body.instruction) {
+      return res.status(400).json({ error: 'Headline, description and instructions are all required.' });
+    }
+    return yodeck.broadcastAlert(token, tpl.id, body).then(function() {
+      var row = db.setActiveAlert({
+        company_id: client.company_id, alert_id: tpl.id, alert_name: tpl.name,
+        category: tpl.category, headline: body.headline,
+        user_id: client.id, user_name: client.username
+      });
+      db.logAlert({ company_id: client.company_id, action: 'broadcast', alert_id: tpl.id,
+                    alert_name: tpl.name, headline: body.headline, user_name: client.username });
+      res.json({ success: true, active: row });
+    });
+  }).catch(function(e) {
+    var detail = e.response ? JSON.stringify(e.response.data).slice(0, 300) : e.message;
+    console.error('Broadcast failed:', detail);
+    // Yodeck's own message for the unassigned case is clearer than a generic one.
+    var msg = /assigned/i.test(detail)
+      ? 'No screens are set up for this alert yet. Use "Enable alerts on my screens" first.'
+      : 'Could not broadcast the alert.';
+    res.status(500).json({ error: msg, detail: detail });
+  });
+});
+
+app.delete('/api/alerts/broadcast', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  var active = db.getActiveAlert(client.company_id);
+  if (!active) return res.status(404).json({ error: 'No alert is active.' });
+
+  yodeck.cancelAlertBroadcast(client.yodeck_token, active.alert_id).then(function() {
+    db.clearActiveAlert(client.company_id);
+    db.logAlert({ company_id: client.company_id, action: 'cancelled', alert_id: active.alert_id,
+                  alert_name: active.alert_name, user_name: client.username });
+    res.json({ success: true });
+  }).catch(function(e) {
+    var status = e.response ? e.response.status : null;
+    console.error('Broadcast cancel failed:', status, e.message);
+    db.logAlert({ company_id: client.company_id, action: 'cancel-failed', alert_id: active.alert_id,
+                  alert_name: active.alert_name, user_name: client.username, detail: 'HTTP ' + status });
+    res.status(500).json({
+      error: 'Yodeck did not accept the cancel request. Stop the alert from the Yodeck dashboard, then choose "Mark as ended" here.',
+      canForce: true
+    });
+  });
+});
+
+// For when the alert was stopped in the Yodeck dashboard and our banner is
+// the only thing still saying it is live.
+app.post('/api/alerts/mark-ended', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) return res.status(401).json({ error: 'Not signed in.' });
+  var active = db.getActiveAlert(client.company_id);
+  if (active) {
+    db.clearActiveAlert(client.company_id);
+    db.logAlert({ company_id: client.company_id, action: 'marked-ended', alert_id: active.alert_id,
+                  alert_name: active.alert_name, user_name: client.username });
+  }
+  res.json({ success: true });
+});
+
 // ════════════════════════════════════════════════════════
 //  ADMIN ROUTES
 // ════════════════════════════════════════════════════════
@@ -540,6 +665,7 @@ app.delete('/admin/api/users/:id', auth.requireAdmin, function(req, res) {
 });
 
 app.get('/admin/api/log', auth.requireAdmin, function(req, res) { res.json(db.getLog(100)); });
+app.get('/admin/api/alert-log', auth.requireAdmin, function(req, res) { res.json(db.getAlertLog(100)); });
 
 // Read-only probe for whether Yodeck's REST API exposes emergency alerts.
 // Their public docs describe the feature but not an endpoint, and the API

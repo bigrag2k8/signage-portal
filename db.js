@@ -28,6 +28,8 @@ db.defaults({
   publish_log: [],
   designs: [],
   takeovers: [],
+  active_alerts: [],
+  alert_log: [],
   _nextCompanyId: 1,
   _nextUserId: 1,
   _nextClientId: 1,
@@ -364,6 +366,52 @@ var dbHelper = {
 
   deleteTakeover: function(id) {
     db.get('takeovers').remove({ id: Number(id) }).write();
+  },
+
+  // ── Emergency alerts ────────────────────────────────────
+  // The active record is portal bookkeeping (what our banner shows); the log
+  // is the audit trail — who fired what, when, and how it ended. The log is
+  // append-only on purpose.
+
+  getActiveAlert: function(companyId) {
+    return db.get('active_alerts').find({ company_id: Number(companyId) }).value();
+  },
+
+  setActiveAlert: function(data) {
+    db.get('active_alerts').remove({ company_id: Number(data.company_id) }).write();
+    var row = {
+      company_id: Number(data.company_id),
+      alert_id: data.alert_id,
+      alert_name: data.alert_name,
+      category: data.category || '',
+      headline: data.headline,
+      fired_by: Number(data.user_id),
+      fired_by_name: data.user_name || '',
+      fired_at: new Date().toISOString()
+    };
+    db.get('active_alerts').push(row).write();
+    return row;
+  },
+
+  clearActiveAlert: function(companyId) {
+    db.get('active_alerts').remove({ company_id: Number(companyId) }).write();
+  },
+
+  logAlert: function(entry) {
+    db.get('alert_log').push({
+      company_id: Number(entry.company_id),
+      action: entry.action, // 'broadcast' | 'cancelled' | 'marked-ended' | 'cancel-failed'
+      alert_id: entry.alert_id,
+      alert_name: entry.alert_name || '',
+      headline: entry.headline || '',
+      user_name: entry.user_name || '',
+      detail: entry.detail || '',
+      at: new Date().toISOString()
+    }).write();
+  },
+
+  getAlertLog: function(limit) {
+    return db.get('alert_log').orderBy(['at'], ['desc']).take(limit || 100).value();
   }
 
 };

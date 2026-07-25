@@ -44,6 +44,22 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .btn-add:hover{opacity:.9}
 .btn-design{background:var(--surface);border:1px solid var(--border);color:var(--text)}
 .btn-design:hover{border-color:var(--accent);color:var(--accent)}
+.al-btn{display:flex;align-items:center;gap:7px;background:none;border:1px solid rgba(248,113,113,.5);color:#f87171;font-family:inherit;font-size:12px;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer;transition:all .15s}
+.al-btn:hover{background:rgba(248,113,113,.12)}
+.al-live{background:rgba(220,38,38,.14);border-bottom:1px solid rgba(248,113,113,.5);padding:11px 24px;display:flex;align-items:center;gap:12px}
+.al-live-txt{flex:1;min-width:0;font-size:13px}
+.al-live-txt b{color:#f87171;font-weight:600}
+.al-live-txt span{color:var(--muted);margin-left:8px}
+.al-end{background:none;border:1px solid rgba(248,113,113,.55);color:#f87171;font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.al-end:hover{background:rgba(248,113,113,.15)}
+.al-type{display:flex;align-items:center;gap:10px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;margin-bottom:6px}
+.al-type:hover{border-color:#f87171}
+.al-type.sel{border-color:#f87171;background:rgba(248,113,113,.08)}
+.al-type .al-cat{margin-left:auto;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.al-note{font-size:12px;color:var(--muted);line-height:1.5;background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.al-fire{width:100%;background:#dc2626;border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:700;padding:12px;border-radius:8px;cursor:pointer}
+.al-fire:hover:not(:disabled){background:#b91c1c}
+.al-fire:disabled{opacity:.45;cursor:not-allowed}
 .to-banner{background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.45);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:18px}
 .to-banner .to-txt{flex:1;min-width:0}
 .to-title{font-size:14px;font-weight:600;color:#fb923c}
@@ -128,8 +144,15 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 <body>
 <nav>
   <div class="nav-logo"><div style="width:8px;height:8px;background:#f97316;border-radius:50%;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>AITS Signage Portal</div>
-  <a href="/logout" class="logout">Sign Out</a>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="al-btn" onclick="openAlerts()">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+      Emergency
+    </button>
+    <a href="/logout" class="logout">Sign Out</a>
+  </div>
 </nav>
+<div id="alert-banner" style="display:none"></div>
 <main>
   <div class="sidebar">
     <div class="sidebar-title">My Screens</div>
@@ -205,6 +228,16 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>
     </div>
     <div class="prog" id="prog"></div>
+  </div>
+</div>
+
+<div class="overlay" id="al-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 style="color:#f87171">Emergency Alert</h2>
+      <button class="modal-close" onclick="closeAlerts()">&#x2715;</button>
+    </div>
+    <div id="al-body"><div class="insp-empty" style="font-size:13px;color:var(--muted);text-align:center;padding:14px">Loading alert types...</div></div>
   </div>
 </div>
 
@@ -287,6 +320,167 @@ function loadScreens() {
     document.getElementById('screens-list').innerHTML = '<div style="color:var(--error);font-size:13px;padding:8px">Error loading screens.</div>';
   });
 }
+
+// ── Emergency alerts ──────────────────────────────────────
+// Native Yodeck alerts, pre-loaded on the players once enabled. No duration
+// exists in the API — an alert stays up until somebody ends it, and the UI
+// says exactly that.
+var alTypes = [];
+var alSelected = null;
+var alCancelFailed = false;
+
+// The five categories most relevant to storefront/office clients, first.
+var AL_ORDER = ['fire', 'security', 'safety', 'health', 'met'];
+
+function checkActiveAlert() {
+  fetch('/api/alerts/active').then(function(r){ return r.json(); })
+    .then(function(d){ renderAlertBanner(d.active); })
+    .catch(function(){});
+}
+
+function renderAlertBanner(active) {
+  var el = document.getElementById('alert-banner');
+  if (!active) { el.style.display = 'none'; el.innerHTML = ''; alCancelFailed = false; return; }
+  var fired = new Date(active.fired_at);
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div class="al-live">' +
+      '<div class="al-live-txt"><b>EMERGENCY ALERT LIVE &mdash; ' + esc(active.headline) + '</b>' +
+        '<span>' + esc(active.alert_name) + ' &middot; fired by ' + esc(active.fired_by_name) +
+        ' at ' + fired.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) +
+        ' &middot; stays up until ended</span></div>' +
+      (alCancelFailed
+        ? '<button class="al-end" onclick="markAlertEnded()">Mark as ended</button>'
+        : '<button class="al-end" onclick="endAlert()">End alert</button>') +
+    '</div>';
+}
+
+function openAlerts() {
+  document.getElementById('al-modal').classList.add('open');
+  document.getElementById('al-body').innerHTML =
+    '<div style="font-size:13px;color:var(--muted);text-align:center;padding:14px">Loading alert types...</div>';
+  fetch('/api/alerts').then(function(r){ return r.json(); }).then(function(d){
+    if (d.error) { document.getElementById('al-body').innerHTML = '<div style="font-size:13px;color:var(--error);padding:8px">' + esc(d.error) + '</div>'; return; }
+    alTypes = d.alerts || [];
+    alSelected = null;
+    renderAlertBanner(d.active);
+    renderAlertPanel();
+  }).catch(function(){
+    document.getElementById('al-body').innerHTML = '<div style="font-size:13px;color:var(--error);padding:8px">Could not load alert types.</div>';
+  });
+}
+function closeAlerts() { document.getElementById('al-modal').classList.remove('open'); }
+
+function alertOrder(a, b) {
+  var ai = AL_ORDER.indexOf(String(a.category).toLowerCase());
+  var bi = AL_ORDER.indexOf(String(b.category).toLowerCase());
+  return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+}
+
+function renderAlertPanel() {
+  var body = document.getElementById('al-body');
+  var unassigned = alTypes.length && alTypes.every(function(a){ return !a.screen_assigned_count; });
+  var html = '';
+
+  if (unassigned) {
+    html += '<div class="al-note">Alerts are not set up on your screens yet, so a broadcast would have nowhere to show. ' +
+            'Enable them once and each screen downloads the alert content for instant display.<br>' +
+            '<button class="upload-btn" style="margin-top:10px;font-size:13px" onclick="setupAlerts(this)">Enable alerts on my screens</button></div>';
+  }
+
+  if (!alSelected) {
+    html += alTypes.slice().sort(alertOrder).map(function(a){
+      return '<button class="al-type" onclick="selectAlert(' + a.id + ')">' +
+               esc(a.headline || a.name) +
+               '<span class="al-cat">' + esc(a.category) + '</span></button>';
+    }).join('');
+    body.innerHTML = html || '<div style="font-size:13px;color:var(--muted)">No alert types found.</div>';
+    return;
+  }
+
+  var t = alSelected;
+  html +=
+    '<button class="al-type sel" onclick="alSelected=null;renderAlertPanel()">' + esc(t.headline || t.name) +
+      '<span class="al-cat">change</span></button>' +
+    '<div class="field"><label>Headline</label><input type="text" id="al-headline" maxlength="256" value="' + esc(t.headline) + '"></div>' +
+    '<div class="field"><label>Description</label><textarea id="al-desc" maxlength="2048" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;min-height:52px">' + esc(t.description) + '</textarea></div>' +
+    '<div class="field"><label>Instructions</label><textarea id="al-instr" maxlength="2048" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;min-height:52px">' + esc(t.instruction) + '</textarea></div>' +
+    '<div class="al-note">Goes to <b>every screen</b> in your account and stays up until you end it from this page.</div>' +
+    '<div class="field"><label>Type ALERT to confirm</label><input type="text" id="al-confirm" autocomplete="off" oninput="document.getElementById(\'al-go\').disabled=this.value!==\'ALERT\'"></div>' +
+    '<button class="al-fire" id="al-go" disabled onclick="fireAlert()">Broadcast emergency alert</button>';
+  body.innerHTML = html;
+}
+
+function selectAlert(id) {
+  alSelected = alTypes.find(function(a){ return a.id === id; }) || null;
+  renderAlertPanel();
+}
+
+function setupAlerts(btn) {
+  btn.disabled = true; btn.textContent = 'Enabling...';
+  fetch('/api/alerts/setup', { method:'POST' }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      showToast('Alerts enabled on ' + d.screens + ' screen' + (d.screens === 1 ? '' : 's') + '.', 'success');
+      openAlerts();
+    } else {
+      btn.disabled = false; btn.textContent = 'Enable alerts on my screens';
+      showToast(d.error || ('Some screens failed (' + (d.failed || []).length + '). Try again.'), 'error');
+    }
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Enable alerts on my screens';
+    showToast('Network error.', 'error');
+  });
+}
+
+function fireAlert() {
+  if (!alSelected) return;
+  var btn = document.getElementById('al-go');
+  btn.disabled = true; btn.textContent = 'Broadcasting...';
+  fetch('/api/alerts/' + alSelected.id + '/broadcast', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      confirm: document.getElementById('al-confirm').value,
+      headline: document.getElementById('al-headline').value,
+      description: document.getElementById('al-desc').value,
+      instruction: document.getElementById('al-instr').value
+    })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (!d.success) {
+      btn.disabled = false; btn.textContent = 'Broadcast emergency alert';
+      return showToast(d.error || 'Broadcast failed.', 'error');
+    }
+    closeAlerts();
+    alCancelFailed = false;
+    renderAlertBanner(d.active);
+    showToast('Emergency alert is live on your screens.', 'success');
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Broadcast emergency alert';
+    showToast('Network error.', 'error');
+  });
+}
+
+function endAlert() {
+  if (!confirm('End the emergency alert and return every screen to normal?')) return;
+  fetch('/api/alerts/broadcast', { method:'DELETE' }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      renderAlertBanner(null);
+      showToast('Alert ended. Screens are returning to normal.', 'success');
+    } else {
+      showToast(d.error || 'Could not end the alert.', 'error');
+      if (d.canForce) { alCancelFailed = true; checkActiveAlert(); }
+    }
+  }).catch(function(){ showToast('Network error.', 'error'); });
+}
+
+function markAlertEnded() {
+  if (!confirm('Only do this after stopping the alert in the Yodeck dashboard. Clear the banner?')) return;
+  fetch('/api/alerts/mark-ended', { method:'POST' }).then(function(r){ return r.json(); }).then(function(){
+    alCancelFailed = false;
+    renderAlertBanner(null);
+  }).catch(function(){ showToast('Network error.', 'error'); });
+}
+
+document.getElementById('al-modal').addEventListener('click', function(e){ if (e.target === this) closeAlerts(); });
 
 // ── Takeover ──────────────────────────────────────────────
 var toFile = null;
@@ -708,6 +902,7 @@ function showToast(msg, type) {
 }
 
 loadScreens();
+checkActiveAlert();
 </script>
 </body>
 </html>

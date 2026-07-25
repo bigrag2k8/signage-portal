@@ -306,6 +306,57 @@ function endTakeover(token, screenId, previousContent, takeoverPlaylistId) {
   });
 }
 
+// ── Emergency alerts (native Yodeck feature) ──────────────
+// Discovered shape: GET /emergency-alerts/ lists the 12 types;
+// POST /emergency-alerts/{id}/broadcast/ fires one, with name/headline/
+// description/instruction as per-broadcast overrides; screens carry an
+// emergency_alerts field that must contain the alert ids or a broadcast is
+// rejected with "No screens are assigned". No duration field exists — an
+// alert stays up until cancelled.
+
+function listEmergencyAlerts(token) {
+  return makeClient(token).get('/emergency-alerts/').then(function(res) {
+    return (res.data && (res.data.results || res.data)) || [];
+  });
+}
+
+// Assigns the given alert ids to every screen the token can see, so the
+// players download the alert content and a broadcast has somewhere to land.
+function assignAlertsToScreens(token, alertIds) {
+  var api = makeClient(token);
+  return getScreens(token).then(function(screens) {
+    return Promise.all(screens.map(function(s) {
+      return api.patch('/screens/' + s.id + '/', { emergency_alerts: alertIds })
+        .then(function() { return { screenId: s.id, name: s.name, ok: true }; })
+        .catch(function(e) {
+          var detail = e.response ? JSON.stringify(e.response.data).slice(0, 300) : e.message;
+          console.error('Alert assign failed for screen', s.id, detail);
+          return { screenId: s.id, name: s.name, ok: false, error: detail };
+        });
+    }));
+  });
+}
+
+function broadcastAlert(token, alertId, overrides) {
+  console.log('EMERGENCY BROADCAST: alert', alertId, JSON.stringify({ headline: overrides.headline }));
+  return makeClient(token).post('/emergency-alerts/' + alertId + '/broadcast/', overrides)
+    .then(function(res) {
+      console.log('Broadcast response:', JSON.stringify(res.data).slice(0, 300));
+      return res.data;
+    });
+}
+
+// No cancel endpoint surfaced during discovery; DELETE on the broadcast
+// subresource is the conventional shape, so it is attempted and honesty is
+// left to the caller if Yodeck refuses it.
+function cancelAlertBroadcast(token, alertId) {
+  return makeClient(token).delete('/emergency-alerts/' + alertId + '/broadcast/')
+    .then(function(res) {
+      console.log('Broadcast cancel response:', res.status);
+      return { cancelled: true };
+    });
+}
+
 // ── Emergency alert endpoint discovery ────────────────────
 // Yodeck documents emergency alerts as a product feature but not as a REST
 // resource, and their API reference does not render as static HTML. This asks
@@ -480,5 +531,9 @@ module.exports = {
   removeItemFromPlaylist: removeItemFromPlaylist,
   startTakeover: startTakeover,
   endTakeover: endTakeover,
-  probeAlertEndpoints: probeAlertEndpoints
+  probeAlertEndpoints: probeAlertEndpoints,
+  listEmergencyAlerts: listEmergencyAlerts,
+  assignAlertsToScreens: assignAlertsToScreens,
+  broadcastAlert: broadcastAlert,
+  cancelAlertBroadcast: cancelAlertBroadcast
 };
