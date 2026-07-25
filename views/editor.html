@@ -54,6 +54,9 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
 .style-btns{display:flex;gap:6px}
 .style-btns button{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;transition:all .15s}
 .style-btns button.on{border-color:var(--accent);color:var(--accent);background:rgba(249,115,22,.08)}
+.style-btns button:disabled{opacity:.35;cursor:not-allowed}
+.style-btns button:disabled:hover{border-color:var(--border);color:var(--muted)}
+.hist-btn{font-size:12px!important;font-weight:600!important}
 .del-btn{width:100%;background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;padding:9px;border-radius:8px;cursor:pointer;transition:all .15s;margin-top:6px}
 .del-btn:hover{border-color:var(--error);color:var(--error)}
 
@@ -119,6 +122,14 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
 <div class="workspace">
   <div class="panel">
     <div class="grp">
+      <div class="grp-title">History</div>
+      <div class="style-btns">
+        <button class="hist-btn" id="undo-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>&#8630; Undo</button>
+        <button class="hist-btn" id="redo-btn" onclick="redo()" title="Redo (Ctrl+Shift+Z)" disabled>&#8631; Redo</button>
+      </div>
+    </div>
+
+    <div class="grp">
       <div class="grp-title">Orientation</div>
       <div class="seg" id="orient-seg">
         <button data-o="landscape" class="active" onclick="setOrientation('landscape')">Landscape</button>
@@ -150,6 +161,18 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
         Logo / image
       </button>
       <input type="file" id="img-input" accept="image/*" style="display:none">
+      <button class="tool" onclick="addRect()">
+        <svg viewBox="0 0 24 24"><path d="M3 5v14h18V5H3zm16 12H5V7h14v10z"/></svg>
+        Rectangle
+      </button>
+      <button class="tool" onclick="addEllipse()">
+        <svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/></svg>
+        Circle
+      </button>
+      <button class="tool" onclick="addLine()">
+        <svg viewBox="0 0 24 24"><path d="M3.7 18.9l14.6-14.6 1.8 1.8L5.5 20.7z"/></svg>
+        Line
+      </button>
       <div class="hint">Double-click a text box to edit. Drag corners to resize, drag to move.</div>
     </div>
 
@@ -278,6 +301,13 @@ function buildCanvas() {
     canvas.on('selection:created', onSelect);
     canvas.on('selection:updated', onSelect);
     canvas.on('selection:cleared', function(){ renderInspector(null); });
+    // These fire on user edits, not on programmatic rescaling, so window
+    // resizes do not pollute the history.
+    canvas.on('object:added', snapshot);
+    canvas.on('object:removed', snapshot);
+    canvas.on('object:modified', snapshot);
+    // Typing would otherwise push one entry per keystroke.
+    canvas.on('text:changed', debounce(snapshot, 500));
   }
   canvas.setWidth(d.w);
   canvas.setHeight(d.h);
@@ -328,7 +358,7 @@ window.addEventListener('resize', debounce(function() {
 }, 180));
 
 // ── Background ────────────────────────────────────────────
-function setBgColor(v) { canvas.setBackgroundColor(v, canvas.renderAll.bind(canvas)); }
+function setBgColor(v) { canvas.setBackgroundColor(v, canvas.renderAll.bind(canvas)); snapshotSoon(); }
 
 function coverBackground(img) {
   var cw = canvas.getWidth(), ch = canvas.getHeight();
@@ -347,7 +377,8 @@ document.getElementById('bg-input').addEventListener('change', function(e) {
   reader.onload = function(ev) {
     fabric.Image.fromURL(ev.target.result, function(img) {
       coverBackground(img);
-      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+      // A background is not an object, so object:added never fires for it.
+      canvas.setBackgroundImage(img, function(){ canvas.renderAll(); snapshot(); });
     });
   };
   reader.readAsDataURL(f);
@@ -371,6 +402,129 @@ function addText() {
   canvas.renderAll();
   onSelect();
 }
+
+// ── Undo / redo ───────────────────────────────────────────
+// Each entry is a full canvas snapshot plus the dimensions it was taken at,
+// because object coordinates are in on-screen pixels and the canvas resizes
+// with the window. Depth is capped: snapshots embed image data, so an
+// unbounded stack would grow to hundreds of megabytes on a photo background.
+// Named undoStack, not history: a global `var history` is silently ignored in
+// a browser because window.history already owns that name, leaving every call
+// operating on the browser's History object.
+var undoStack = [];
+var historyIndex = -1;
+var historyLock = false;
+var HISTORY_MAX = 25;
+
+function snapshot() {
+  if (historyLock || !canvas) return;
+  var json = JSON.stringify(canvas.toJSON());
+  if (historyIndex >= 0 && undoStack[historyIndex] && undoStack[historyIndex].json === json) return;
+  // Anything undone is discarded once a new change is made.
+  undoStack = undoStack.slice(0, historyIndex + 1);
+  undoStack.push({ json: json, w: canvas.getWidth(), h: canvas.getHeight() });
+  if (undoStack.length > HISTORY_MAX) undoStack.shift();
+  historyIndex = undoStack.length - 1;
+  updateHistoryButtons();
+}
+
+function resetHistory() {
+  undoStack = [];
+  historyIndex = -1;
+  snapshot();
+}
+
+function updateHistoryButtons() {
+  var u = document.getElementById('undo-btn');
+  var r = document.getElementById('redo-btn');
+  if (u) u.disabled = historyIndex <= 0;
+  if (r) r.disabled = historyIndex >= undoStack.length - 1;
+}
+
+function restoreSnapshot(entry) {
+  historyLock = true;
+  canvas.loadFromJSON(entry.json, function() {
+    // The window may have been resized since this snapshot was taken.
+    if (entry.w && entry.h && (entry.w !== canvas.getWidth() || entry.h !== canvas.getHeight())) {
+      rescaleTo(canvas.getWidth(), canvas.getHeight(), entry.w, entry.h);
+    }
+    if (canvas.backgroundImage) coverBackground(canvas.backgroundImage);
+    canvas.renderAll();
+    if (typeof canvas.backgroundColor === 'string') {
+      document.getElementById('bg-color').value = toHex(canvas.backgroundColor);
+    }
+    historyLock = false;
+    renderInspector(null);
+    updateHistoryButtons();
+  });
+}
+
+function undo() {
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  restoreSnapshot(undoStack[historyIndex]);
+}
+
+function redo() {
+  if (historyIndex >= undoStack.length - 1) return;
+  historyIndex++;
+  restoreSnapshot(undoStack[historyIndex]);
+}
+
+// ── Shapes ────────────────────────────────────────────────
+function placeShape(shape) {
+  canvas.add(shape);
+  canvas.setActiveObject(shape);
+  canvas.renderAll();
+  onSelect();
+}
+
+function addRect() {
+  var w = canvas.getWidth(), h = canvas.getHeight();
+  placeShape(new fabric.Rect({
+    left: w * 0.25, top: h * 0.35,
+    width: w * 0.5, height: h * 0.22,
+    fill: '#6366f1', rx: 0, ry: 0,
+    stroke: null, strokeWidth: 0
+  }));
+}
+
+function addEllipse() {
+  var w = canvas.getWidth(), h = canvas.getHeight();
+  var r = Math.min(w, h) * 0.15;
+  placeShape(new fabric.Ellipse({
+    left: w * 0.5 - r, top: h * 0.5 - r,
+    rx: r, ry: r,
+    fill: '#f97316',
+    stroke: null, strokeWidth: 0
+  }));
+}
+
+function addLine() {
+  var w = canvas.getWidth(), h = canvas.getHeight();
+  placeShape(new fabric.Line([w * 0.2, h * 0.5, w * 0.8, h * 0.5], {
+    stroke: '#ffffff', strokeWidth: Math.max(2, Math.round(h * 0.008))
+  }));
+}
+
+function activeShape() {
+  var o = canvas.getActiveObject();
+  return o && (o.type === 'rect' || o.type === 'ellipse' || o.type === 'circle' || o.type === 'line' || o.type === 'triangle') ? o : null;
+}
+
+function setShapeFill(v) { var o = activeShape(); if (o) { o.set('fill', v); canvas.renderAll(); snapshot(); } }
+function setStroke(v) { var o = activeShape(); if (o) { o.set('stroke', v); canvas.renderAll(); snapshot(); } }
+function setStrokeWidth(v) { var o = activeShape(); if (o) { o.set('strokeWidth', parseInt(v) || 0); canvas.renderAll(); snapshot(); } }
+function setCorner(v) {
+  var o = activeShape();
+  if (o && o.type === 'rect') { var r = parseInt(v) || 0; o.set({ rx: r, ry: r }); canvas.renderAll(); snapshot(); }
+}
+
+// ── Layering ──────────────────────────────────────────────
+// Shapes are opaque, so without this a rectangle added after text hides it
+// with no way to recover short of deleting and rebuilding.
+function bringForward() { var o = canvas.getActiveObject(); if (o) { canvas.bringForward(o); canvas.renderAll(); snapshot(); } }
+function sendBackward() { var o = canvas.getActiveObject(); if (o) { canvas.sendBackwards(o); canvas.renderAll(); snapshot(); } }
 
 // ── Add image/logo ────────────────────────────────────────
 document.getElementById('img-input').addEventListener('change', function(e) {
@@ -400,7 +554,39 @@ function renderInspector(obj) {
     el.innerHTML = '<div class="insp-empty">Select an item on the canvas to edit it.</div>';
     return;
   }
+  // Available for every object type — layering matters as soon as shapes exist.
+  var arrange =
+    '<div class="field"><label>Arrange</label><div class="style-btns">' +
+      '<button onclick="bringForward()" title="Bring forward">&#8593; Forward</button>' +
+      '<button onclick="sendBackward()" title="Send backward">&#8595; Back</button>' +
+    '</div></div>';
+
   var isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
+  var isShape = obj.type === 'rect' || obj.type === 'ellipse' || obj.type === 'circle' || obj.type === 'line' || obj.type === 'triangle';
+
+  if (isShape) {
+    var isLine = obj.type === 'line';
+    var html = '';
+    if (!isLine) {
+      html += '<div class="field"><label>Fill</label><div class="color-row">' +
+                '<input type="color" value="' + toHex(obj.fill) + '" oninput="setShapeFill(this.value)">' +
+              '</div></div>';
+    }
+    html += '<div class="row2">' +
+              '<div class="field"><label>' + (isLine ? 'Color' : 'Border') + '</label><div class="color-row">' +
+                '<input type="color" value="' + toHex(obj.stroke || '#ffffff') + '" oninput="setStroke(this.value)">' +
+              '</div></div>' +
+              '<div class="field"><label>' + (isLine ? 'Thickness' : 'Border width') + '</label>' +
+                '<input type="number" min="0" max="80" value="' + Math.round(obj.strokeWidth || 0) + '" oninput="setStrokeWidth(this.value)"></div>' +
+            '</div>';
+    if (obj.type === 'rect') {
+      html += '<div class="field"><label>Corner radius</label>' +
+                '<input type="number" min="0" max="200" value="' + Math.round(obj.rx || 0) + '" oninput="setCorner(this.value)"></div>';
+    }
+    el.innerHTML = html + arrange + '<button class="del-btn" onclick="delSelected()">Delete shape</button>';
+    return;
+  }
+
   if (isText) {
     var opts = FONTS.map(function(f){
       return '<option value="' + f + '"' + (obj.fontFamily === f ? ' selected' : '') + '>' + f + '</option>';
@@ -422,10 +608,12 @@ function renderInspector(obj) {
         '<button class="' + (obj.textAlign==='center'?'on':'') + '" onclick="setAlign(\'center\')">&#8596;</button>' +
         '<button class="' + (obj.textAlign==='right'?'on':'') + '" onclick="setAlign(\'right\')">&#8677;</button>' +
       '</div></div>' +
+      arrange +
       '<button class="del-btn" onclick="delSelected()">Delete text</button>';
   } else {
     el.innerHTML =
       '<div class="insp-empty" style="text-align:left">Image selected.<br>Drag to move, drag corners to resize.</div>' +
+      arrange +
       '<button class="del-btn" onclick="delSelected()">Delete image</button>';
   }
 }
@@ -434,13 +622,17 @@ function activeText() {
   var o = canvas.getActiveObject();
   return o && (o.type==='i-text'||o.type==='text'||o.type==='textbox') ? o : null;
 }
-function setText(v){ var o=activeText(); if(o){o.set('text',v);canvas.renderAll();} }
-function setFont(v){ var o=activeText(); if(o){o.set('fontFamily',v);canvas.renderAll();} }
-function setSize(v){ var o=activeText(); if(o){o.set('fontSize',parseInt(v)||40);canvas.renderAll();} }
-function setFill(v){ var o=activeText(); if(o){o.set('fill',v);canvas.renderAll();} }
-function toggleBold(){ var o=activeText(); if(o){o.set('fontWeight',o.fontWeight==='bold'?'normal':'bold');canvas.renderAll();onSelect();} }
-function toggleItalic(){ var o=activeText(); if(o){o.set('fontStyle',o.fontStyle==='italic'?'normal':'italic');canvas.renderAll();onSelect();} }
-function setAlign(a){ var o=activeText(); if(o){o.set('textAlign',a);canvas.renderAll();onSelect();} }
+// Inspector fields fire per keystroke and per colour-picker drag, so these
+// coalesce into one history entry instead of dozens.
+var snapshotSoon = debounce(snapshot, 500);
+
+function setText(v){ var o=activeText(); if(o){o.set('text',v);canvas.renderAll();snapshotSoon();} }
+function setFont(v){ var o=activeText(); if(o){o.set('fontFamily',v);canvas.renderAll();snapshot();} }
+function setSize(v){ var o=activeText(); if(o){o.set('fontSize',parseInt(v)||40);canvas.renderAll();snapshotSoon();} }
+function setFill(v){ var o=activeText(); if(o){o.set('fill',v);canvas.renderAll();snapshotSoon();} }
+function toggleBold(){ var o=activeText(); if(o){o.set('fontWeight',o.fontWeight==='bold'?'normal':'bold');canvas.renderAll();onSelect();snapshot();} }
+function toggleItalic(){ var o=activeText(); if(o){o.set('fontStyle',o.fontStyle==='italic'?'normal':'italic');canvas.renderAll();onSelect();snapshot();} }
+function setAlign(a){ var o=activeText(); if(o){o.set('textAlign',a);canvas.renderAll();onSelect();snapshot();} }
 function delSelected(){
   var o=canvas.getActiveObject(); if(!o) return;
   canvas.remove(o); canvas.discardActiveObject(); canvas.renderAll(); renderInspector(null);
@@ -448,9 +640,20 @@ function delSelected(){
 
 // keyboard delete (when not editing text)
 document.addEventListener('keydown', function(e){
+  var active = canvas && canvas.getActiveObject();
+  var editingText = !!(active && active.isEditing);
+
   if ((e.key==='Delete'||e.key==='Backspace')) {
-    var o = canvas.getActiveObject();
-    if (o && !(o.isEditing)) { e.preventDefault(); delSelected(); }
+    if (active && !editingText) { e.preventDefault(); delSelected(); }
+    return;
+  }
+
+  // Undo/redo. Skipped while editing a text box so the browser's own
+  // text undo keeps working inside the box.
+  if ((e.ctrlKey || e.metaKey) && !editingText) {
+    var k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
   }
 });
 
@@ -566,6 +769,10 @@ function loadDesign(id) {
       });
     }
     buildCanvas();
+    // Loading fires object:added per object; without this each one would
+    // serialize the whole canvas into a history entry that is discarded a
+    // moment later by resetHistory().
+    historyLock = true;
     canvas.loadFromJSON(p.canvas, function(){
       if (p.width && p.height) rescaleTo(canvas.getWidth(), canvas.getHeight(), p.width, p.height);
       if (canvas.backgroundImage) coverBackground(canvas.backgroundImage);
@@ -578,6 +785,9 @@ function loadDesign(id) {
       designLabel();
       renderInspector(null);
       closeLibrary();
+      // Undo should not walk back into whatever was on the canvas before.
+      historyLock = false;
+      resetHistory();
       showToast('Opened "' + d.design.name + '".', 'success');
     });
   }).catch(function(err){ apiError(err, 'Could not open that design.'); });
@@ -751,6 +961,9 @@ window.addEventListener('load', function(){
   // default orientation from query (?orient=portrait) if present
   var qo = new URLSearchParams(location.search).get('orient');
   if (qo === 'portrait') setOrientation('portrait');
+  // Seed the stack with the empty canvas so the first edit has something to
+  // undo back to.
+  resetHistory();
 });
 </script>
 </body>
