@@ -44,6 +44,14 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .btn-add:hover{opacity:.9}
 .btn-design{background:var(--surface);border:1px solid var(--border);color:var(--text)}
 .btn-design:hover{border-color:var(--accent);color:var(--accent)}
+.to-banner{background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.45);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.to-banner .to-txt{flex:1;min-width:0}
+.to-title{font-size:14px;font-weight:600;color:#fb923c}
+.to-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.to-end{background:none;border:1px solid rgba(249,115,22,.5);color:#fb923c;font-family:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.to-end:hover{background:rgba(249,115,22,.15)}
+.drop{border:1px dashed var(--border);border-radius:9px;padding:18px;text-align:center;cursor:pointer;font-size:13px;color:var(--muted)}
+.drop:hover{border-color:var(--accent);color:var(--text)}
 .ss-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .ss-img{display:block;width:100%;max-width:520px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
 .ss-note{font-size:11px;color:var(--muted);margin-top:6px}
@@ -145,11 +153,16 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
           <svg viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
           Design a Slide
         </button>
+        <button class="hdr-btn btn-design" onclick="openTakeover()">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v10a2 2 0 002 2h5v2H7v2h10v-2h-3v-2h5a2 2 0 002-2V5a2 2 0 00-2-2z"/></svg>
+          Take Over
+        </button>
         <button class="hdr-btn btn-add" onclick="openModal()">
           <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           Add Slide
         </button>
       </div>
+      <div id="takeover-banner" style="display:none"></div>
       <div id="screenshot-wrap" style="display:none;margin-bottom:20px"></div>
       <div class="pl-hdr">
         <span class="pl-title">Playlist</span>
@@ -192,6 +205,33 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>
     </div>
     <div class="prog" id="prog"></div>
+  </div>
+</div>
+
+<div class="overlay" id="to-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Take Over Screen</h2>
+      <button class="modal-close" onclick="closeTakeover()">&#x2715;</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:-6px 0 16px;line-height:1.5">
+      Shows one file full screen and pauses the playlist. The playlist comes back on its own when the time is up.
+    </p>
+    <input type="file" id="to-file" accept="image/*,video/mp4" style="display:none">
+    <div class="drop" id="to-drop">Click to choose an image or video</div>
+    <div class="field" style="margin-top:12px">
+      <label>Show it for</label>
+      <select id="to-dur">
+        <option value="60">1 hour</option>
+        <option value="240">4 hours</option>
+        <option value="eod" selected>Rest of the day</option>
+      </select>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:-4px" id="to-when"></div>
+    <div class="modal-footer">
+      <button class="upload-btn" id="to-go" onclick="startTakeover()">Take Over Screen</button>
+      <button class="cancel-btn" onclick="closeTakeover()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -243,6 +283,117 @@ function loadScreens() {
   });
 }
 
+// ── Takeover ──────────────────────────────────────────────
+var toFile = null;
+var toTimer = null;
+
+// End of day is computed here rather than on the server so it lands at the
+// user's midnight, not the server's.
+function takeoverEndsAt() {
+  var v = document.getElementById('to-dur').value;
+  if (v === 'eod') {
+    var d = new Date();
+    d.setHours(23, 59, 0, 0);
+    // Past 11:59pm already — treat "rest of the day" as an hour.
+    if (d.getTime() <= Date.now()) d = new Date(Date.now() + 60 * 60 * 1000);
+    return d;
+  }
+  return new Date(Date.now() + parseInt(v, 10) * 60 * 1000);
+}
+
+function describeEnds() {
+  var d = takeoverEndsAt();
+  document.getElementById('to-when').textContent = 'Playlist returns at ' +
+    d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+    (d.toDateString() !== new Date().toDateString() ? ' tomorrow' : '');
+}
+
+function openTakeover() {
+  if (!currentScreenId) return;
+  toFile = null;
+  document.getElementById('to-file').value = '';
+  document.getElementById('to-drop').textContent = 'Click to choose an image or video';
+  describeEnds();
+  document.getElementById('to-modal').classList.add('open');
+}
+function closeTakeover() { document.getElementById('to-modal').classList.remove('open'); }
+
+function startTakeover() {
+  if (!toFile) return showToast('Choose a file first.', 'error');
+  var btn = document.getElementById('to-go');
+  btn.disabled = true; btn.textContent = 'Taking over...';
+
+  var fd = new FormData();
+  fd.append('file', toFile);
+  fd.append('label', toFile.name);
+  fd.append('expiresAt', takeoverEndsAt().toISOString());
+  fd.append('screenName', document.getElementById('screen-title').textContent || '');
+
+  fetch('/api/takeover/' + currentScreenId, { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false; btn.textContent = 'Take Over Screen';
+      if (!d.success) return showToast(d.error || 'Could not start the takeover.', 'error');
+      closeTakeover();
+      renderTakeover(d.takeover);
+      showToast('Takeover started.', 'success');
+    })
+    .catch(function(){
+      btn.disabled = false; btn.textContent = 'Take Over Screen';
+      showToast('Network error.', 'error');
+    });
+}
+
+function endTakeoverNow() {
+  if (!confirm('Put the normal playlist back on this screen now?')) return;
+  fetch('/api/takeover/' + currentScreenId, { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.success) return showToast(d.error || 'Could not restore the playlist.', 'error');
+      renderTakeover(null);
+      loadPlaylist(currentScreenId);
+      showToast('Playlist restored.', 'success');
+    })
+    .catch(function(){ showToast('Network error.', 'error'); });
+}
+
+function loadTakeover(screenId) {
+  fetch('/api/takeover/' + screenId).then(function(r){ return r.json(); })
+    .then(function(d){ renderTakeover(d.takeover); })
+    .catch(function(){ renderTakeover(null); });
+}
+
+function remaining(iso) {
+  var ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'any moment now';
+  var mins = Math.round(ms / 60000);
+  if (mins < 60) return mins + (mins === 1 ? ' minute' : ' minutes') + ' left';
+  var h = Math.floor(mins / 60), m = mins % 60;
+  return h + 'h ' + m + 'm left';
+}
+
+function renderTakeover(t) {
+  var el = document.getElementById('takeover-banner');
+  clearInterval(toTimer);
+  if (!t) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  var paint = function() {
+    var ends = new Date(t.expires_at);
+    el.innerHTML =
+      '<div class="to-banner">' +
+        '<div class="to-txt">' +
+          '<div class="to-title">Screen taken over &mdash; ' + esc(t.label) + '</div>' +
+          '<div class="to-sub">Playlist paused. Returns at ' +
+            ends.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }) +
+            ' &middot; ' + remaining(t.expires_at) + '</div>' +
+        '</div>' +
+        '<button class="to-end" onclick="endTakeoverNow()">End now</button>' +
+      '</div>';
+  };
+  paint();
+  toTimer = setInterval(paint, 30000);
+}
+
 // Landing on "Select a Screen" every time is wasted clicks — especially coming
 // back from the designer, or when the account only has one screen.
 function autoSelectScreen() {
@@ -273,8 +424,17 @@ function selectScreen(s) {
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
   renderScreenshot(s);
+  loadTakeover(s.id);
   loadPlaylist(s.id);
 }
+
+document.getElementById('to-drop').addEventListener('click', function(){ document.getElementById('to-file').click(); });
+document.getElementById('to-file').addEventListener('change', function(e){
+  toFile = e.target.files[0] || null;
+  document.getElementById('to-drop').textContent = toFile ? toFile.name : 'Click to choose an image or video';
+});
+document.getElementById('to-dur').addEventListener('change', describeEnds);
+document.getElementById('to-modal').addEventListener('click', function(e){ if (e.target === this) closeTakeover(); });
 
 // Yodeck captures what the display is actually showing. It refreshes on
 // Yodeck's own schedule, so this can lag a push by a few minutes — hence the

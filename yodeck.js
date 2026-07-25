@@ -241,6 +241,71 @@ function manageScreenPlaylist(token, screenId, media, duration) {
   });
 }
 
+// ── Takeover ──────────────────────────────────────────────
+// Points a screen at a one-item playlist so a single file plays full screen,
+// bypassing the normal playlist entirely. The screen's previous content is
+// returned to the caller to store, because that is the only way to put it back.
+
+function getScreenContent(token, screenId) {
+  return makeClient(token).get('/screens/' + screenId + '/').then(function(res) {
+    return { name: res.data.name, content: res.data.screen_content || null };
+  });
+}
+
+function setScreenContent(token, screenId, content) {
+  return makeClient(token).patch('/screens/' + screenId + '/', { screen_content: content });
+}
+
+function startTakeover(token, screenId, fileBuffer, filename, mimetype, displayName, duration) {
+  var api = makeClient(token);
+  var previous, media;
+
+  return getScreenContent(token, screenId).then(function(info) {
+    previous = info.content;
+    console.log('Takeover: screen', screenId, 'previous content', JSON.stringify(previous));
+    return uploadMedia(token, fileBuffer, filename, mimetype, displayName);
+  }).then(function(m) {
+    media = m;
+    // Same encode wait as publishing — switching to media the screen cannot
+    // render yet would leave the old playlist showing.
+    return waitForMediaReady(token, media.id);
+  }).then(function(readiness) {
+    console.log('Takeover: media', media.id, 'readiness', readiness);
+    return api.post('/playlists/', {
+      name: 'Portal Takeover - Screen ' + screenId,
+      items: [{ id: media.id, type: 'media', duration: duration || 30, priority: 1 }]
+    });
+  }).then(function(plRes) {
+    var playlist = plRes.data;
+    return setScreenContent(token, screenId, { source_id: playlist.id, source_type: 'playlist' })
+      .then(function() { return pushToScreen(token, screenId); })
+      .then(function() {
+        console.log('Takeover: screen', screenId, 'now on playlist', playlist.id);
+        return { previous: previous, playlistId: playlist.id, mediaId: media.id };
+      });
+  });
+}
+
+// Restoring must not depend on the takeover playlist still existing, so the
+// screen is repointed first and cleanup is best-effort afterwards.
+function endTakeover(token, screenId, previousContent, takeoverPlaylistId) {
+  if (!previousContent || !previousContent.source_id) {
+    return Promise.reject(new Error('No previous content recorded for screen ' + screenId));
+  }
+  return setScreenContent(token, screenId, {
+    source_id: previousContent.source_id,
+    source_type: previousContent.source_type || 'playlist'
+  }).then(function() {
+    return pushToScreen(token, screenId);
+  }).then(function() {
+    console.log('Takeover: screen', screenId, 'restored to', JSON.stringify(previousContent));
+    if (takeoverPlaylistId) {
+      return makeClient(token).delete('/playlists/' + takeoverPlaylistId + '/')
+        .catch(function(e) { console.warn('Could not delete takeover playlist:', e.message); });
+    }
+  });
+}
+
 // ── Get screen's current playlist items ───────────────────
 function getScreenPlaylist(token, screenId) {
   var api = makeClient(token);
@@ -320,5 +385,7 @@ module.exports = {
   uploadMedia: uploadMedia,
   publishToScreens: publishToScreens,
   getScreenPlaylist: getScreenPlaylist,
-  removeItemFromPlaylist: removeItemFromPlaylist
+  removeItemFromPlaylist: removeItemFromPlaylist,
+  startTakeover: startTakeover,
+  endTakeover: endTakeover
 };

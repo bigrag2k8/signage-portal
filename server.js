@@ -352,6 +352,109 @@ app.delete('/api/designs/:id', auth.requireClient, function(req, res) {
   res.json({ success: true });
 });
 
+// ── Screen takeover ───────────────────────────────────────
+// Uploads one file, points the screen at it full screen, and puts the normal
+// playlist back when the timer runs out.
+
+var MAX_TAKEOVER_HOURS = 24;
+
+function takeoverView(t) {
+  if (!t) return null;
+  return {
+    id: t.id, screen_id: t.screen_id, label: t.label,
+    expires_at: t.expires_at, created_by_name: t.created_by_name, created_at: t.created_at
+  };
+}
+
+app.get('/api/takeover/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client) return res.status(401).json({ error: 'Not signed in.' });
+  var t = db.getTakeoverForScreen(req.params.screenId);
+  if (t && t.company_id !== client.company_id) t = null;
+  res.json({ takeover: takeoverView(t) });
+});
+
+app.post('/api/takeover/:screenId', auth.requireClient, upload.single('file'), function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  if (!req.file) return res.status(400).json({ error: 'Choose a file to show.' });
+
+  var expiresAt = new Date(req.body.expiresAt);
+  if (isNaN(expiresAt.getTime())) return res.status(400).json({ error: 'Pick when the takeover should end.' });
+  if (expiresAt.getTime() <= Date.now()) return res.status(400).json({ error: 'That end time has already passed.' });
+  if (expiresAt.getTime() - Date.now() > MAX_TAKEOVER_HOURS * 3600 * 1000) {
+    return res.status(400).json({ error: 'A takeover can run for at most ' + MAX_TAKEOVER_HOURS + ' hours.' });
+  }
+
+  var screenId = req.params.screenId;
+  var label = (req.body.label || req.file.originalname || 'Takeover').slice(0, 120);
+  var existing = db.getTakeoverForScreen(screenId);
+
+  yodeck.startTakeover(client.yodeck_token, screenId, req.file.buffer, req.file.originalname,
+                       req.file.mimetype, label, 30)
+    .then(function(result) {
+      // Replacing a takeover must keep the ORIGINAL playlist as the restore
+      // target, or the screen would be handed back to the previous takeover.
+      var restoreTo = existing ? existing.previous_content : result.previous;
+      var row = db.createTakeover({
+        company_id: client.company_id, screen_id: screenId,
+        screen_name: req.body.screenName || '', label: label,
+        media_id: result.mediaId, playlist_id: result.playlistId,
+        previous_content: restoreTo, expires_at: expiresAt.toISOString(),
+        user_id: client.id, user_name: client.username
+      });
+      res.json({ success: true, takeover: takeoverView(row) });
+    })
+    .catch(function(err) {
+      console.error('Takeover failed:', err.response ? JSON.stringify(err.response.data) : err.message);
+      res.status(500).json({ error: 'Could not start the takeover. The screen is unchanged.' });
+    });
+});
+
+app.delete('/api/takeover/:screenId', auth.requireClient, function(req, res) {
+  var client = db.getClient(req.session.clientId);
+  if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
+  var t = db.getTakeoverForScreen(req.params.screenId);
+  if (!t || t.company_id !== client.company_id) return res.status(404).json({ error: 'No takeover running on that screen.' });
+
+  yodeck.endTakeover(client.yodeck_token, t.screen_id, t.previous_content, t.playlist_id)
+    .then(function() {
+      db.deleteTakeover(t.id);
+      res.json({ success: true });
+    })
+    .catch(function(err) {
+      console.error('Ending takeover failed:', err.message);
+      res.status(500).json({ error: 'Could not restore the playlist. Try again, or push from the portal.' });
+    });
+});
+
+// Sweeper. Runs on a timer and once at boot, so a takeover that expired while
+// the server was restarting still gets cleared instead of staying up forever.
+function sweepExpiredTakeovers() {
+  var due = db.getExpiredTakeovers();
+  if (!due.length) return;
+  console.log('Takeover sweep: restoring', due.length, 'expired takeover(s)');
+  due.forEach(function(t) {
+    var company = db.getCompany(t.company_id);
+    if (!company || !company.yodeck_token) {
+      console.warn('Takeover', t.id, 'has no usable token; dropping the record');
+      db.deleteTakeover(t.id);
+      return;
+    }
+    yodeck.endTakeover(company.yodeck_token, t.screen_id, t.previous_content, t.playlist_id)
+      .then(function() {
+        db.deleteTakeover(t.id);
+        console.log('Takeover', t.id, 'expired; screen', t.screen_id, 'restored');
+      })
+      .catch(function(err) {
+        // Left in place deliberately so the next sweep tries again.
+        console.error('Takeover', t.id, 'restore failed, will retry:', err.message);
+      });
+  });
+}
+
+setInterval(sweepExpiredTakeovers, 30 * 1000);
+
 // ════════════════════════════════════════════════════════
 //  ADMIN ROUTES
 // ════════════════════════════════════════════════════════
@@ -456,6 +559,7 @@ app.use(function(req, res) {
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function() {
   console.log('Signage Portal running on port ' + PORT);
+  sweepExpiredTakeovers();
   console.log('Client login:  /login');
   console.log('Admin login:   /admin/login');
 });

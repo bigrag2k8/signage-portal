@@ -9,6 +9,7 @@ uploads/
 # Runtime data — holds client accounts and password hashes
 portal.json
 sessions/
+designs/
 
 # Claude Code local state and worktrees
 .claude/

@@ -27,11 +27,13 @@ db.defaults({
   clients: [], // legacy - kept for backward compat
   publish_log: [],
   designs: [],
+  takeovers: [],
   _nextCompanyId: 1,
   _nextUserId: 1,
   _nextClientId: 1,
   _nextLogId: 1,
-  _nextDesignId: 1
+  _nextDesignId: 1,
+  _nextTakeoverId: 1
 }).write();
 
 // ── Migrate existing clients to companies/users if needed ──
@@ -311,6 +313,57 @@ var dbHelper = {
     [designFile(id), thumbFile(id)].forEach(function(f) {
       try { fs.unlinkSync(f); } catch (e) { if (e.code !== 'ENOENT') console.warn('Could not remove', f, e.message); }
     });
+  },
+
+  // ── Takeovers ───────────────────────────────────────────
+  // Persisted rather than held in memory: the promise is that the screen goes
+  // back on its own, and an in-memory timer dies on every redeploy.
+
+  getTakeoverForScreen: function(screenId) {
+    return db.get('takeovers').find({ screen_id: String(screenId) }).value();
+  },
+
+  getTakeoversForCompany: function(companyId) {
+    return db.get('takeovers').filter({ company_id: Number(companyId) }).value();
+  },
+
+  getAllTakeovers: function() {
+    return db.get('takeovers').value();
+  },
+
+  // Anything already due, including while the server was down.
+  getExpiredTakeovers: function(now) {
+    var cutoff = now || Date.now();
+    return db.get('takeovers').filter(function(t) {
+      return new Date(t.expires_at).getTime() <= cutoff;
+    }).value();
+  },
+
+  createTakeover: function(data) {
+    var id = db.get('_nextTakeoverId').value();
+    var row = {
+      id: id,
+      company_id: Number(data.company_id),
+      screen_id: String(data.screen_id),
+      screen_name: data.screen_name || '',
+      label: data.label || '',
+      media_id: data.media_id,
+      playlist_id: data.playlist_id,
+      previous_content: data.previous_content,
+      expires_at: data.expires_at,
+      created_by: Number(data.user_id),
+      created_by_name: data.user_name || '',
+      created_at: new Date().toISOString()
+    };
+    // One takeover per screen — a second replaces the first.
+    db.get('takeovers').remove({ screen_id: String(data.screen_id) }).write();
+    db.get('takeovers').push(row).write();
+    db.set('_nextTakeoverId', id + 1).write();
+    return row;
+  },
+
+  deleteTakeover: function(id) {
+    db.get('takeovers').remove({ id: Number(id) }).write();
   }
 
 };
