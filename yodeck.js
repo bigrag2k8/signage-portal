@@ -437,13 +437,27 @@ function probeAlertEndpoints(token) {
         });
       }).catch(function(e) { return { error: e.message }; });
 
+      // Assignment shape discovery: PATCHing screens.emergency_alerts with
+      // bare ids crashes Yodeck with a raw 500, so the element shape has to
+      // come from field metadata — either the screen's PATCH schema or a
+      // writable screens field on the alert type itself.
+      var screenOpts = api.get('/screens/').then(function(r) {
+        var list = (r.data && (r.data.results || r.data)) || [];
+        var first = Array.isArray(list) ? list[0] : null;
+        if (!first || !first.id) return { note: 'no screens' };
+        return opts('/screens/' + first.id + '/');
+      }).catch(function(e) { return { error: e.message }; });
+
       return Promise.all([
         opts(base + '/' + id + '/broadcast/'),
         opts(base + '/'),
-        screenDetail
+        screenDetail,
+        opts(base + '/' + id + '/'),
+        screenOpts
       ]).then(function(extra) {
         return { stage1: stage1, alertIdProbed: id, stage2: stage2,
-                 stage3: { broadcastOptions: extra[0], listOptions: extra[1], screen: extra[2] } };
+                 stage3: { broadcastOptions: extra[0], listOptions: extra[1], screen: extra[2],
+                           alertDetailOptions: extra[3], screenOptions: extra[4] } };
       });
     });
   });
