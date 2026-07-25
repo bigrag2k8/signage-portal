@@ -306,6 +306,33 @@ function endTakeover(token, screenId, previousContent, takeoverPlaylistId) {
   });
 }
 
+// ── Emergency alert endpoint discovery ────────────────────
+// Yodeck documents emergency alerts as a product feature but not as a REST
+// resource, and their API reference does not render as static HTML. This asks
+// the live API which paths exist. GET only, so it cannot trigger anything.
+var ALERT_PATH_CANDIDATES = [
+  '/emergency_alerts/', '/emergency-alerts/', '/emergencyalerts/',
+  '/alerts/', '/alert/', '/emergency_alert_types/', '/emergency-alert-types/',
+  '/alert_types/', '/alert-types/', '/broadcasts/', '/cap/'
+];
+
+function probeAlertEndpoints(token) {
+  var api = makeClient(token);
+  return Promise.all(ALERT_PATH_CANDIDATES.map(function(p) {
+    return api.get(p)
+      .then(function(r) {
+        var d = r.data || {};
+        var sample = Array.isArray(d.results) ? d.results[0] : (Array.isArray(d) ? d[0] : d);
+        return { path: p, status: r.status, exists: true,
+                 count: (d.count !== undefined ? d.count : (Array.isArray(d.results) ? d.results.length : undefined)),
+                 fields: sample && typeof sample === 'object' ? Object.keys(sample).slice(0, 25) : null };
+      })
+      .catch(function(e) {
+        return { path: p, status: e.response ? e.response.status : 'no response', exists: false };
+      });
+  }));
+}
+
 // ── Get screen's current playlist items ───────────────────
 function getScreenPlaylist(token, screenId) {
   var api = makeClient(token);
@@ -387,5 +414,6 @@ module.exports = {
   getScreenPlaylist: getScreenPlaylist,
   removeItemFromPlaylist: removeItemFromPlaylist,
   startTakeover: startTakeover,
-  endTakeover: endTakeover
+  endTakeover: endTakeover,
+  probeAlertEndpoints: probeAlertEndpoints
 };

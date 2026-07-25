@@ -541,6 +541,19 @@ app.delete('/admin/api/users/:id', auth.requireAdmin, function(req, res) {
 
 app.get('/admin/api/log', auth.requireAdmin, function(req, res) { res.json(db.getLog(100)); });
 
+// Read-only probe for whether Yodeck's REST API exposes emergency alerts.
+// Their public docs describe the feature but not an endpoint, and the API
+// reference is a JS app. GET only — this never changes anything.
+app.get('/admin/api/probe-alerts/:companyId', auth.requireAdmin, function(req, res) {
+  var company = db.getCompany(req.params.companyId);
+  if (!company || !company.yodeck_token) return res.status(400).json({ error: 'That company has no Yodeck token.' });
+  yodeck.probeAlertEndpoints(company.yodeck_token).then(function(results) {
+    res.json({ company: company.name, results: results });
+  }).catch(function(e) {
+    res.status(500).json({ error: e.message });
+  });
+});
+
 app.post('/admin/api/verify-token', auth.requireAdmin, function(req, res) {
   yodeck.verifyToken(req.body.token).then(function(result) { res.json(result); });
 });
