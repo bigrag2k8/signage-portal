@@ -138,6 +138,40 @@ function assignPlaylistToScreens(token, screenIds, playlistId) {
   });
 }
 
+// ── Wait for Yodeck to finish processing an upload ────────
+// Confirming the S3 upload only hands the file over; Yodeck then processes it
+// asynchronously. Pushing a playlist whose newest item is still processing
+// leaves the screen on its old content — which is why publishing and pushing
+// back-to-back appeared to do nothing, while pushing from the portal minutes
+// later worked. Never blocks publishing: on timeout or error it gives up and
+// lets the caller proceed, which is no worse than not waiting at all.
+function waitForMediaReady(token, mediaId, timeoutMs) {
+  var api = makeClient(token);
+  var deadline = Date.now() + (timeoutMs || 25000);
+  var logged = false;
+
+  function check() {
+    return api.get('/media/' + mediaId + '/').then(function(res) {
+      var m = res.data || {};
+      // Yodeck's exact status field is not documented here; log the shape once
+      // so it can be narrowed down from production logs.
+      if (!logged) { console.log('Media', mediaId, 'record fields:', Object.keys(m).join(',')); logged = true; }
+      var status = m.status || m.state || m.processing_status || (m.media_origin && m.media_origin.status);
+      console.log('Media', mediaId, 'status:', JSON.stringify(status));
+
+      if (status == null) return 'unknown';
+      if (/ready|available|active|complete|success|done/i.test(String(status))) return 'ready';
+      if (/fail|error/i.test(String(status))) { console.warn('Media', mediaId, 'reported failure:', status); return 'failed'; }
+      if (Date.now() > deadline) { console.warn('Media', mediaId, 'still', status, 'at timeout; continuing anyway'); return 'timeout'; }
+      return new Promise(function(r) { setTimeout(r, 1500); }).then(check);
+    }).catch(function(e) {
+      console.warn('Media status check failed:', e.message);
+      return 'unknown';
+    });
+  }
+  return check();
+}
+
 // ── Full publish: upload media + add to playlist ──────────
 function publishToScreens(token, screenIds, fileBuffer, filename, mimetype, displayName, duration) {
   return uploadMedia(token, fileBuffer, filename, mimetype, displayName).then(function(media) {
@@ -151,7 +185,11 @@ function publishToScreens(token, screenIds, fileBuffer, filename, mimetype, disp
       });
     });
     return chain.then(function(results) {
-      return { media: media, results: results };
+      // Resolve only once the media is usable, so a push issued right after
+      // this call lands on content the screen can actually display.
+      return waitForMediaReady(token, media.id).then(function(readiness) {
+        return { media: media, results: results, readiness: readiness };
+      });
     });
   });
 }
