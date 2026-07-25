@@ -318,19 +318,53 @@ var ALERT_PATH_CANDIDATES = [
 
 function probeAlertEndpoints(token) {
   var api = makeClient(token);
-  return Promise.all(ALERT_PATH_CANDIDATES.map(function(p) {
+
+  function probe(p) {
     return api.get(p)
       .then(function(r) {
         var d = r.data || {};
         var sample = Array.isArray(d.results) ? d.results[0] : (Array.isArray(d) ? d[0] : d);
         return { path: p, status: r.status, exists: true,
                  count: (d.count !== undefined ? d.count : (Array.isArray(d.results) ? d.results.length : undefined)),
-                 fields: sample && typeof sample === 'object' ? Object.keys(sample).slice(0, 25) : null };
+                 fields: sample && typeof sample === 'object' ? Object.keys(sample).slice(0, 30) : null,
+                 sample: sample && typeof sample === 'object' ? sample : null };
       })
       .catch(function(e) {
-        return { path: p, status: e.response ? e.response.status : 'no response', exists: false };
+        // 405 is as informative as 200: the path exists but wants another
+        // method — which is exactly what a POST-to-broadcast action looks like.
+        return { path: p, status: e.response ? e.response.status : 'no response',
+                 exists: e.response ? e.response.status === 405 : false,
+                 allow: e.response && e.response.headers ? e.response.headers.allow : undefined,
+                 body: e.response && e.response.data ? JSON.stringify(e.response.data).slice(0, 200) : undefined };
       });
-  }));
+  }
+
+  // Stage 1: which collection paths exist at all.
+  return Promise.all(ALERT_PATH_CANDIDATES.map(probe)).then(function(stage1) {
+    var found = stage1.filter(function(r) { return r.exists && r.status === 200; })[0];
+    if (!found || !found.sample || !found.sample.id) return { stage1: stage1, stage2: null };
+
+    // Stage 2: for a real alert id, look for the action endpoints. GET-only —
+    // a 405 tells us the trigger is there without ever invoking it.
+    var id = found.sample.id;
+    var base = found.path.replace(/\/$/, '');
+    var actions = [
+      base + '/' + id + '/',
+      base + '/' + id + '/broadcast/',
+      base + '/' + id + '/activate/',
+      base + '/' + id + '/send/',
+      base + '/' + id + '/start/',
+      base + '/' + id + '/stop/',
+      base + '/' + id + '/cancel/',
+      base + '/broadcast/',
+      base + '/active/',
+      base + '/history/',
+      base + '/status/'
+    ];
+    return Promise.all(actions.map(probe)).then(function(stage2) {
+      return { stage1: stage1, alertIdProbed: id, stage2: stage2 };
+    });
+  });
 }
 
 // ── Get screen's current playlist items ───────────────────
