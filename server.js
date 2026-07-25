@@ -12,7 +12,9 @@ var mailer = require('./mailer');
 var auth = require('./middleware/auth');
 
 var app = express();
+// PUBLIC is served to anyone; VIEWS is not served directly, only via guarded routes.
 var PUBLIC = path.join(__dirname, 'public');
+var VIEWS = path.join(__dirname, 'views');
 
 // Trust Railway's reverse proxy for accurate IP detection
 app.set('trust proxy', 1);
@@ -65,7 +67,7 @@ function isLocked(username) {
 }
 
 function sendHTML(res, file) {
-  res.sendFile(path.join(PUBLIC, file));
+  res.sendFile(path.join(VIEWS, file));
 }
 
 // ════════════════════════════════════════════════════════
@@ -324,6 +326,8 @@ app.post('/admin/api/verify-token', auth.requireAdmin, function(req, res) {
 });
 
 // ── Static files ──────────────────────────────────────────
+// Public assets only (images, css, vendor scripts). App pages live in views/
+// and are reachable only through the guarded routes above.
 app.use(express.static(PUBLIC));
 
 // ── 404 ───────────────────────────────────────────────────

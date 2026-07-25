@@ -1,0 +1,2 @@
+Static assets served publicly with no auth check (images, css, vendor scripts).
+App HTML pages belong in views/ — anything placed here is reachable by URL to anonymous visitors.
