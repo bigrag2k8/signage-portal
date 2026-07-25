@@ -5,3 +5,10 @@ node_modules/
 *.db-wal
 uploads/
 .DS_Store
+
+# Runtime data — holds client accounts and password hashes
+portal.json
+sessions/
+
+# Claude Code local state and worktrees
+.claude/
