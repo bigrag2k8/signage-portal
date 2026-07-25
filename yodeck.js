@@ -407,8 +407,14 @@ function probeAlertEndpoints(token) {
       });
   }
 
+  // Stage 0: the API root index — DRF routers list every registered resource
+  // there. If any broadcast collection exists, this names it. Also the last
+  // remaining candidates for a cancel route after 405/404/404 on the obvious
+  // shapes.
+  var stage0paths = ['/', '/emergency-broadcasts/', '/emergency-alerts/broadcasts/', '/broadcast/'];
+
   // Stage 1: which collection paths exist at all.
-  return Promise.all(ALERT_PATH_CANDIDATES.map(probe)).then(function(stage1) {
+  return Promise.all(stage0paths.concat(ALERT_PATH_CANDIDATES).map(probe)).then(function(stage1) {
     var found = stage1.filter(function(r) { return r.exists && r.status === 200; })[0];
     if (!found || !found.sample || !found.sample.id) return { stage1: stage1, stage2: null };
 
