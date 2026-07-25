@@ -920,6 +920,10 @@ function showToast(msg, type) {
 
 loadScreens();
 checkActiveAlert();
+// The server reconciles against Yodeck every ~30s; this only re-reads our own
+// database, so an open tab picks up dashboard-fired or remotely-ended alerts
+// without a reload.
+setInterval(checkActiveAlert, 60 * 1000);
 </script>
 </body>
 </html>

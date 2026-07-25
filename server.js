@@ -464,7 +464,21 @@ function sweepEndedAlerts() {
   });
 }
 
-setInterval(function() { sweepExpiredTakeovers(); sweepEndedAlerts(); }, 30 * 1000);
+// Server-side broadcast sync: one Yodeck call per tokened company per cycle,
+// regardless of how many browsers have the portal open. Keeps the banner
+// fresh within ~30s for dashboard-fired or dashboard-ended alerts, without
+// coupling page loads to Yodeck's latency. sweepEndedAlerts stays as the
+// fallback for cycles where Yodeck is unreachable.
+function sweepAlertSync() {
+  db.getAllCompanies().forEach(function(c) {
+    if (!c.yodeck_token) return;
+    syncAlertWithYodeck(c.id, c.yodeck_token).catch(function(e) {
+      console.warn('Alert sync for company', c.id, 'failed:', e.message);
+    });
+  });
+}
+
+setInterval(function() { sweepExpiredTakeovers(); sweepEndedAlerts(); sweepAlertSync(); }, 30 * 1000);
 
 // ── Emergency alerts ──────────────────────────────────────
 // Native Yodeck alerts: content is pre-loaded onto each player's SD card once
@@ -472,43 +486,46 @@ setInterval(function() { sweepExpiredTakeovers(); sweepEndedAlerts(); }, 30 * 10
 // upload, no encode. The API has no duration field; an alert stays up until
 // cancelled, and the UI says so.
 
+// Reconciles our active-alert record against Yodeck's broadcast singleton —
+// the source of truth for what is actually broadcasting, including alerts
+// fired from Yodeck's own dashboard. Used by the panel route and the sweeper.
+function syncAlertWithYodeck(companyId, token) {
+  return yodeck.listActiveBroadcasts(token).then(function(broadcasts) {
+    var active = db.getActiveAlert(companyId) || null;
+    var live = broadcasts[0] || null;
+    if (live && (!active || active.broadcast_hash !== live.broadcast_hash)) {
+      var data = live.emergency_data || {};
+      active = db.setActiveAlert({
+        company_id: companyId, alert_id: 0,
+        alert_name: data.category || 'emergency',
+        category: data.category || '', headline: data.headline || 'Emergency alert',
+        broadcast_hash: live.broadcast_hash, ends_at: live.end_time,
+        user_id: 0, user_name: 'Yodeck dashboard'
+      });
+      db.logAlert({ company_id: companyId, action: 'discovered', alert_id: 0,
+                    alert_name: active.alert_name, headline: active.headline, user_name: '(sync)' });
+    } else if (!live && active) {
+      db.clearActiveAlert(companyId);
+      db.logAlert({ company_id: companyId, action: 'ended-remotely', alert_id: active.alert_id,
+                    alert_name: active.alert_name, user_name: '(sync)' });
+      active = null;
+    }
+    return active;
+  });
+}
+
 app.get('/api/alerts', auth.requireClient, function(req, res) {
   var client = db.getClient(req.session.clientId);
   if (!client || !client.yodeck_token) return res.status(400).json({ error: 'No Yodeck token configured.' });
   Promise.all([
     yodeck.listEmergencyAlerts(client.yodeck_token),
-    yodeck.listActiveBroadcasts(client.yodeck_token).catch(function(e) {
-      console.warn('Broadcast list failed:', e.message);
-      return null; // reconcile only when Yodeck answered
+    // Sync failure must not take the panel down — fall back to our record.
+    syncAlertWithYodeck(client.company_id, client.yodeck_token).catch(function(e) {
+      console.warn('Alert sync failed:', e.message);
+      return db.getActiveAlert(client.company_id) || null;
     })
   ]).then(function(r) {
-    var alerts = r[0], broadcasts = r[1];
-    var active = db.getActiveAlert(client.company_id) || null;
-
-    // Yodeck is the source of truth for what is actually broadcasting —
-    // including alerts fired from their dashboard, which our own records
-    // know nothing about.
-    if (broadcasts !== null) {
-      var live = broadcasts[0] || null;
-      if (live && (!active || active.broadcast_hash !== live.broadcast_hash)) {
-        var data = live.emergency_data || {};
-        active = db.setActiveAlert({
-          company_id: client.company_id, alert_id: 0,
-          alert_name: data.category || 'emergency',
-          category: data.category || '', headline: data.headline || 'Emergency alert',
-          broadcast_hash: live.broadcast_hash, ends_at: live.end_time,
-          user_id: 0, user_name: 'Yodeck dashboard'
-        });
-        db.logAlert({ company_id: client.company_id, action: 'discovered', alert_id: 0,
-                      alert_name: active.alert_name, headline: active.headline, user_name: '(sync)' });
-      } else if (!live && active) {
-        db.clearActiveAlert(client.company_id);
-        db.logAlert({ company_id: client.company_id, action: 'ended-remotely', alert_id: active.alert_id,
-                      alert_name: active.alert_name, user_name: '(sync)' });
-        active = null;
-      }
-    }
-    res.json({ alerts: alerts, active: active });
+    res.json({ alerts: r[0], active: r[1] });
   }).catch(function(e) {
     console.error('Alert list failed:', e.message);
     res.status(500).json({ error: 'Could not load alert types.' });
@@ -754,6 +771,7 @@ app.listen(PORT, function() {
   console.log('Signage Portal running on port ' + PORT);
   sweepExpiredTakeovers();
   sweepEndedAlerts();
+  sweepAlertSync();
   console.log('Client login:  /login');
   console.log('Admin login:   /admin/login');
 });
