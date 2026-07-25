@@ -153,14 +153,15 @@ function waitForMediaReady(token, mediaId, timeoutMs) {
   function check() {
     return api.get('/media/' + mediaId + '/').then(function(res) {
       var m = res.data || {};
-      // Yodeck's exact status field is not documented here; log the shape once
-      // so it can be narrowed down from production logs.
       if (!logged) { console.log('Media', mediaId, 'record fields:', Object.keys(m).join(',')); logged = true; }
-      var status = m.status || m.state || m.processing_status || (m.media_origin && m.media_origin.status);
+      var status = m.status;
       console.log('Media', mediaId, 'status:', JSON.stringify(status));
 
       if (status == null) return 'unknown';
-      if (/ready|available|active|complete|success|done/i.test(String(status))) return 'ready';
+      // Observed in production: "encoding" while Yodeck processes the upload,
+      // then "finished". The others are defensive — an unrecognised status just
+      // keeps polling until the timeout, which is the old behaviour.
+      if (/finished|ready|available|active|complete|success|done/i.test(String(status))) return 'ready';
       if (/fail|error/i.test(String(status))) { console.warn('Media', mediaId, 'reported failure:', status); return 'failed'; }
       if (Date.now() > deadline) { console.warn('Media', mediaId, 'still', status, 'at timeout; continuing anyway'); return 'timeout'; }
       return new Promise(function(r) { setTimeout(r, 1500); }).then(check);

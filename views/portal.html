@@ -44,6 +44,9 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .btn-add:hover{opacity:.9}
 .btn-design{background:var(--surface);border:1px solid var(--border);color:var(--text)}
 .btn-design:hover{border-color:var(--accent);color:var(--accent)}
+.ss-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ss-img{display:block;width:100%;max-width:520px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
+.ss-note{font-size:11px;color:var(--muted);margin-top:6px}
 .pl-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .pl-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .pl-count{font-size:12px;color:var(--muted);background:var(--surface2);padding:2px 8px;border-radius:10px}
@@ -199,6 +202,7 @@ var allScreens = [];
 var currentScreenId = null;
 var currentPlaylistId = null;
 var currentSlides = [];
+var lastScreenshotUrl = null;
 var selectedFile = null;
 
 function loadScreens() {
@@ -249,9 +253,43 @@ function selectScreen(s) {
   var badge = document.getElementById('online-badge');
   badge.textContent = s.online ? 'Online' : 'Offline';
   badge.className = 'online-badge ' + (s.online ? 'on' : 'off');
-  var ssWrap = document.getElementById('screenshot-wrap');
-  ssWrap.style.display = "none";
-    loadPlaylist(s.id);
+  renderScreenshot(s);
+  loadPlaylist(s.id);
+}
+
+// Yodeck captures what the display is actually showing. It refreshes on
+// Yodeck's own schedule, so this can lag a push by a few minutes — hence the
+// explicit Refresh rather than presenting it as live.
+function renderScreenshot(s) {
+  var wrap = document.getElementById('screenshot-wrap');
+  if (!s || !s.screenshot_url) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+  lastScreenshotUrl = s.screenshot_url;
+  wrap.style.display = 'block';
+  wrap.innerHTML =
+    '<div class="ss-hdr">' +
+      '<span class="pl-title">On screen now</span>' +
+      '<button class="refresh-btn" onclick="refreshScreenshot()">Refresh</button>' +
+    '</div>' +
+    '<img class="ss-img" id="ss-img" alt="Latest capture of this screen" ' +
+      'src="' + lastScreenshotUrl + '" ' +
+      'onerror="this.parentNode.style.display=\'none\'">' +
+    '<div class="ss-note">Captured by Yodeck &mdash; may lag a few minutes behind a push.</div>';
+}
+
+// The URL is stable, so a browser would serve the old capture from cache.
+// A changing query string forces a fresh fetch.
+function refreshScreenshot() {
+  if (!currentScreenId) return;
+  fetch('/api/screen/' + currentScreenId).then(function(r){ return r.json(); }).then(function(s){
+    if (!s || !s.screenshot_url) return showToast('No capture available yet.', 'error');
+    var img = document.getElementById('ss-img');
+    if (img) img.src = s.screenshot_url + (s.screenshot_url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+    showToast('Screenshot refreshed.', 'success');
+  }).catch(function(){ showToast('Could not refresh the screenshot.', 'error'); });
 }
 
 function loadPlaylist(screenId) {
