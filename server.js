@@ -125,6 +125,9 @@ app.post('/change-password', auth.requireClient, function(req, res) {
 // ── Client portal ─────────────────────────────────────────
 app.get('/portal', auth.requireClient, function(req, res) { sendHTML(res, 'portal.html'); });
 
+// ── Slide designer ────────────────────────────────────────
+app.get('/editor', auth.requireClient, function(req, res) { sendHTML(res, 'editor.html'); });
+
 app.get('/api/screens', auth.requireClient, function(req, res) {
   var client = db.getClient(req.session.clientId);
   if (!client || !client.yodeck_token) return res.json({ error: 'No Yodeck token configured. Please contact support.' });

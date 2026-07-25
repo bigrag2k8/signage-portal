@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23f97316%22/><path d=%22M20 30h60v40H20z%22 fill=%22white%22 opacity=%22.9%22/></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide Designer — AITS Signage Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=Oswald:wght@400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Bebas+Neue&family=Pacifico&family=Anton&display=swap" rel="stylesheet">
+<script src="/vendor/fabric.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1a1a24;--border:#1e1e2e;--accent:#f97316;--text:#f1f1f3;--muted:#6b6b7a;--success:#34d399;--error:#f87171;--warning:#fbbf24}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
+nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-logo{font-family:'DM Serif Display',serif;font-size:17px;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.nav-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px rgba(249,115,22,0.8)}
+.nav-right{display:flex;align-items:center;gap:8px}
+.link-btn{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:7px;transition:all .2s;background:none;cursor:pointer;font-family:inherit}
+.link-btn:hover{border-color:var(--accent);color:var(--text)}
+.publish-btn{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#f97316,#ea580c);border:none;color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer;transition:opacity .15s;font-family:inherit}
+.publish-btn:hover{opacity:.9}
+.publish-btn svg{width:15px;height:15px;fill:currentColor}
+
+.workspace{display:grid;grid-template-columns:248px 1fr;height:calc(100vh - 56px)}
+.panel{border-right:1px solid var(--border);background:rgba(10,10,15,.5);overflow-y:auto;padding:16px 14px}
+.stage{position:relative;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden;background:radial-gradient(circle at 50% 40%,rgba(249,115,22,0.04),transparent 60%)}
+.canvas-shell{box-shadow:0 10px 40px rgba(0,0,0,.5);border-radius:4px;overflow:hidden;background:#000}
+
+.grp{margin-bottom:20px}
+.grp-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:3px}
+.seg button{flex:1;background:none;border:none;color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;padding:7px 6px;border-radius:6px;cursor:pointer;transition:all .15s}
+.seg button.active{background:var(--accent);color:#fff}
+.tool{width:100%;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;padding:11px 12px;border-radius:9px;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.tool:hover{border-color:var(--accent);background:var(--surface2)}
+.tool svg{width:17px;height:17px;fill:var(--accent);flex-shrink:0}
+.hint{font-size:11px;color:var(--muted);line-height:1.5;margin-top:4px}
+.color-row{display:flex;align-items:center;gap:8px}
+.color-row input[type=color]{width:38px;height:34px;padding:0;border:1px solid var(--border);border-radius:7px;background:none;cursor:pointer}
+.color-row label{font-size:12px;color:var(--muted)}
+
+/* selection inspector */
+.inspector{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px;margin-top:4px}
+.insp-empty{font-size:12px;color:var(--muted);text-align:center;padding:10px 4px;line-height:1.5}
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:10px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
+.field select,.field input[type=text],.field input[type=number]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s}
+.field select:focus,.field input:focus{border-color:var(--accent)}
+.field textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:56px}
+.field textarea:focus{border-color:var(--accent)}
+.row2{display:flex;gap:8px}
+.row2>*{flex:1}
+.style-btns{display:flex;gap:6px}
+.style-btns button{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;transition:all .15s}
+.style-btns button.on{border-color:var(--accent);color:var(--accent);background:rgba(249,115,22,.08)}
+.del-btn{width:100%;background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;padding:9px;border-radius:8px;cursor:pointer;transition:all .15s;margin-top:6px}
+.del-btn:hover{border-color:var(--error);color:var(--error)}
+
+/* overlay/modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:460px;padding:26px;max-height:90vh;overflow-y:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-hdr h2{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:2px 6px}
+.modal-close:hover{color:var(--text)}
+.screen-pick{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;margin-bottom:4px}
+.screen-opt{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
+.screen-opt:hover{border-color:rgba(249,115,22,.4)}
+.screen-opt.sel{border-color:var(--accent);background:rgba(249,115,22,.06)}
+.screen-opt input{width:16px;height:16px;accent-color:var(--accent)}
+.screen-opt .sdot{width:8px;height:8px;border-radius:50%}
+.screen-opt .snm{flex:1;font-size:13px;font-weight:500}
+.modal-footer{display:flex;gap:8px;margin-top:20px}
+.mf-primary{flex:1;padding:11px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer}
+.mf-primary:hover:not(:disabled){opacity:.9}
+.mf-primary:disabled{opacity:.5;cursor:not-allowed}
+.mf-cancel{background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:14px;padding:11px 18px;border-radius:8px;cursor:pointer}
+.mf-cancel:hover{border-color:var(--text);color:var(--text)}
+
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:14px;display:flex;align-items:center;gap:8px;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);min-width:220px;max-width:90vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(52,211,153,.4)}
+#toast.error{border-color:rgba(248,113,113,.4)}
+
+@media(max-width:760px){
+  .workspace{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .panel{border-right:none;border-bottom:1px solid var(--border);max-height:40vh}
+  .stage{padding:12px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo"><div class="nav-dot"></div>Slide Designer</div>
+  <div class="nav-right">
+    <a href="/portal" class="link-btn">&larr; Back to Portal</a>
+    <button class="publish-btn" onclick="openPublish()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      Publish to Signage
+    </button>
+  </div>
+</nav>
+
+<div class="workspace">
+  <div class="panel">
+    <div class="grp">
+      <div class="grp-title">Orientation</div>
+      <div class="seg" id="orient-seg">
+        <button data-o="landscape" class="active" onclick="setOrientation('landscape')">Landscape</button>
+        <button data-o="portrait" onclick="setOrientation('portrait')">Portrait</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Background</div>
+      <button class="tool" onclick="document.getElementById('bg-input').click()">
+        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        Upload background image
+      </button>
+      <div class="color-row">
+        <input type="color" id="bg-color" value="#101018" onchange="setBgColor(this.value)">
+        <label>Base color (behind image)</label>
+      </div>
+      <input type="file" id="bg-input" accept="image/*" style="display:none">
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Add</div>
+      <button class="tool" onclick="addText()">
+        <svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+        Text box
+      </button>
+      <button class="tool" onclick="document.getElementById('img-input').click()">
+        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        Logo / image
+      </button>
+      <input type="file" id="img-input" accept="image/*" style="display:none">
+      <div class="hint">Double-click a text box to edit. Drag corners to resize, drag to move.</div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Selected item</div>
+      <div class="inspector" id="inspector">
+        <div class="insp-empty">Select an item on the canvas to edit it.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="canvas-shell" id="canvas-shell">
+      <canvas id="c"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Publish modal -->
+<div class="overlay" id="pub-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Publish to Signage</h2>
+      <button class="modal-close" onclick="closePublish()">&#x2715;</button>
+    </div>
+    <div class="field">
+      <label>Slide name</label>
+      <input type="text" id="pub-name" placeholder="e.g. Summer Promo 2025">
+    </div>
+    <div class="field">
+      <label>Duration (seconds)</label>
+      <input type="number" id="pub-dur" value="10" min="1" max="3600" style="max-width:120px">
+    </div>
+    <div class="field">
+      <label>Screens</label>
+      <div class="screen-pick" id="screen-pick"><div class="insp-empty">Loading screens...</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="mf-primary" id="pub-go" onclick="doPublish()">Publish Slide</button>
+      <button class="mf-cancel" onclick="closePublish()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="t-icon"></span><span id="t-msg"></span></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────
+var SIZES = {
+  landscape: { w: 1920, h: 1080 },
+  portrait:  { w: 1080, h: 1920 }
+};
+var FONTS = ['DM Sans','DM Serif Display','Oswald','Montserrat','Bebas Neue','Anton','Pacifico','Arial','Georgia','Times New Roman','Courier New','Verdana','Impact'];
+
+var orientation = 'landscape';
+var canvas = null;
+var allScreens = [];
+var screensLoaded = false;
+
+// ── Canvas setup / responsive fit ─────────────────────────
+function stageArea() {
+  var stage = document.getElementById('stage');
+  var pad = 24;
+  return { w: stage.clientWidth - pad * 2, h: stage.clientHeight - pad * 2 };
+}
+
+function fitDims() {
+  var target = SIZES[orientation];
+  var area = stageArea();
+  var scale = Math.min(area.w / target.w, area.h / target.h);
+  if (!isFinite(scale) || scale <= 0) scale = 0.3;
+  return { w: Math.round(target.w * scale), h: Math.round(target.h * scale), scale: scale };
+}
+
+function buildCanvas() {
+  var d = fitDims();
+  if (!canvas) {
+    canvas = new fabric.Canvas('c', {
+      backgroundColor: document.getElementById('bg-color').value,
+      preserveObjectStacking: true
+    });
+    canvas.on('selection:created', onSelect);
+    canvas.on('selection:updated', onSelect);
+    canvas.on('selection:cleared', function(){ renderInspector(null); });
+  }
+  canvas.setWidth(d.w);
+  canvas.setHeight(d.h);
+  document.getElementById('canvas-shell').style.width = d.w + 'px';
+  document.getElementById('canvas-shell').style.height = d.h + 'px';
+  canvas.renderAll();
+}
+
+// Rescale all objects + background when canvas dimensions change
+function rescaleTo(newW, newH, oldW, oldH) {
+  var fx = newW / oldW, fy = newH / oldH;
+  canvas.getObjects().forEach(function(o) {
+    o.set({
+      left: o.left * fx,
+      top: o.top * fy,
+      scaleX: o.scaleX * fx,
+      scaleY: o.scaleY * fy
+    });
+    o.setCoords();
+  });
+  var bg = canvas.backgroundImage;
+  if (bg) { bg.set({ scaleX: bg.scaleX * fx, scaleY: bg.scaleY * fy }); }
+}
+
+function setOrientation(o) {
+  if (o === orientation) return;
+  orientation = o;
+  document.querySelectorAll('#orient-seg button').forEach(function(b){
+    b.classList.toggle('active', b.dataset.o === o);
+  });
+  var oldW = canvas.getWidth(), oldH = canvas.getHeight();
+  var d = fitDims();
+  rescaleTo(d.w, d.h, oldW, oldH);
+  // refit any background-cover image to new aspect
+  buildCanvas();
+  if (canvas.backgroundImage) coverBackground(canvas.backgroundImage);
+  canvas.renderAll();
+}
+
+window.addEventListener('resize', debounce(function() {
+  var oldW = canvas.getWidth(), oldH = canvas.getHeight();
+  var d = fitDims();
+  if (d.w === oldW && d.h === oldH) return;
+  rescaleTo(d.w, d.h, oldW, oldH);
+  buildCanvas();
+  if (canvas.backgroundImage) coverBackground(canvas.backgroundImage);
+  canvas.renderAll();
+}, 180));
+
+// ── Background ────────────────────────────────────────────
+function setBgColor(v) { canvas.setBackgroundColor(v, canvas.renderAll.bind(canvas)); }
+
+function coverBackground(img) {
+  var cw = canvas.getWidth(), ch = canvas.getHeight();
+  var scale = Math.max(cw / img.width, ch / img.height);
+  img.set({
+    scaleX: scale, scaleY: scale,
+    left: (cw - img.width * scale) / 2,
+    top: (ch - img.height * scale) / 2,
+    originX: 'left', originY: 'top'
+  });
+}
+
+document.getElementById('bg-input').addEventListener('change', function(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    fabric.Image.fromURL(ev.target.result, function(img) {
+      coverBackground(img);
+      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+    });
+  };
+  reader.readAsDataURL(f);
+  e.target.value = '';
+});
+
+// ── Add text ──────────────────────────────────────────────
+function addText() {
+  var t = new fabric.IText('Your text here', {
+    left: canvas.getWidth() * 0.15,
+    top: canvas.getHeight() * 0.4,
+    fontFamily: 'DM Sans',
+    fontSize: Math.round(canvas.getHeight() * 0.08),
+    fill: '#ffffff',
+    fontWeight: 'normal',
+    textAlign: 'left',
+    editable: true
+  });
+  canvas.add(t);
+  canvas.setActiveObject(t);
+  canvas.renderAll();
+  onSelect();
+}
+
+// ── Add image/logo ────────────────────────────────────────
+document.getElementById('img-input').addEventListener('change', function(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    fabric.Image.fromURL(ev.target.result, function(img) {
+      var maxW = canvas.getWidth() * 0.4;
+      var scale = Math.min(1, maxW / img.width);
+      img.set({ left: canvas.getWidth() * 0.3, top: canvas.getHeight() * 0.3, scaleX: scale, scaleY: scale });
+      canvas.add(img);
+      canvas.setActiveObject(img);
+      canvas.renderAll();
+      onSelect();
+    });
+  };
+  reader.readAsDataURL(f);
+  e.target.value = '';
+});
+
+// ── Selection inspector ───────────────────────────────────
+function onSelect() { renderInspector(canvas.getActiveObject()); }
+
+function renderInspector(obj) {
+  var el = document.getElementById('inspector');
+  if (!obj) {
+    el.innerHTML = '<div class="insp-empty">Select an item on the canvas to edit it.</div>';
+    return;
+  }
+  var isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
+  if (isText) {
+    var opts = FONTS.map(function(f){
+      return '<option value="' + f + '"' + (obj.fontFamily === f ? ' selected' : '') + '>' + f + '</option>';
+    }).join('');
+    var px = Math.round(obj.fontSize);
+    el.innerHTML =
+      '<div class="field"><label>Text</label><textarea id="i-text" oninput="setText(this.value)">' + esc(obj.text) + '</textarea></div>' +
+      '<div class="field"><label>Font</label><select id="i-font" onchange="setFont(this.value)">' + opts + '</select></div>' +
+      '<div class="row2">' +
+        '<div class="field"><label>Size</label><input type="number" id="i-size" value="' + px + '" min="8" max="600" oninput="setSize(this.value)"></div>' +
+        '<div class="field"><label>Color</label><div class="color-row"><input type="color" id="i-color" value="' + toHex(obj.fill) + '" oninput="setFill(this.value)"></div></div>' +
+      '</div>' +
+      '<div class="field"><label>Style</label><div class="style-btns">' +
+        '<button id="i-bold" class="' + (obj.fontWeight === 'bold' ? 'on' : '') + '" onclick="toggleBold()" style="font-weight:700">B</button>' +
+        '<button id="i-italic" class="' + (obj.fontStyle === 'italic' ? 'on' : '') + '" onclick="toggleItalic()" style="font-style:italic">I</button>' +
+      '</div></div>' +
+      '<div class="field"><label>Align</label><div class="style-btns">' +
+        '<button class="' + (obj.textAlign==='left'?'on':'') + '" onclick="setAlign(\'left\')">&#8676;</button>' +
+        '<button class="' + (obj.textAlign==='center'?'on':'') + '" onclick="setAlign(\'center\')">&#8596;</button>' +
+        '<button class="' + (obj.textAlign==='right'?'on':'') + '" onclick="setAlign(\'right\')">&#8677;</button>' +
+      '</div></div>' +
+      '<button class="del-btn" onclick="delSelected()">Delete text</button>';
+  } else {
+    el.innerHTML =
+      '<div class="insp-empty" style="text-align:left">Image selected.<br>Drag to move, drag corners to resize.</div>' +
+      '<button class="del-btn" onclick="delSelected()">Delete image</button>';
+  }
+}
+
+function activeText() {
+  var o = canvas.getActiveObject();
+  return o && (o.type==='i-text'||o.type==='text'||o.type==='textbox') ? o : null;
+}
+function setText(v){ var o=activeText(); if(o){o.set('text',v);canvas.renderAll();} }
+function setFont(v){ var o=activeText(); if(o){o.set('fontFamily',v);canvas.renderAll();} }
+function setSize(v){ var o=activeText(); if(o){o.set('fontSize',parseInt(v)||40);canvas.renderAll();} }
+function setFill(v){ var o=activeText(); if(o){o.set('fill',v);canvas.renderAll();} }
+function toggleBold(){ var o=activeText(); if(o){o.set('fontWeight',o.fontWeight==='bold'?'normal':'bold');canvas.renderAll();onSelect();} }
+function toggleItalic(){ var o=activeText(); if(o){o.set('fontStyle',o.fontStyle==='italic'?'normal':'italic');canvas.renderAll();onSelect();} }
+function setAlign(a){ var o=activeText(); if(o){o.set('textAlign',a);canvas.renderAll();onSelect();} }
+function delSelected(){
+  var o=canvas.getActiveObject(); if(!o) return;
+  canvas.remove(o); canvas.discardActiveObject(); canvas.renderAll(); renderInspector(null);
+}
+
+// keyboard delete (when not editing text)
+document.addEventListener('keydown', function(e){
+  if ((e.key==='Delete'||e.key==='Backspace')) {
+    var o = canvas.getActiveObject();
+    if (o && !(o.isEditing)) { e.preventDefault(); delSelected(); }
+  }
+});
+
+// ── Publish ───────────────────────────────────────────────
+function openPublish() {
+  document.getElementById('pub-modal').classList.add('open');
+  if (!screensLoaded) loadScreens();
+}
+function closePublish() { document.getElementById('pub-modal').classList.remove('open'); }
+document.getElementById('pub-modal').addEventListener('click', function(e){ if(e.target===this) closePublish(); });
+
+function loadScreens() {
+  fetch('/api/screens').then(function(r){return r.json();}).then(function(data){
+    var pick = document.getElementById('screen-pick');
+    if (data.error) { pick.innerHTML = '<div class="insp-empty" style="color:var(--error)">' + esc(data.error) + '</div>'; return; }
+    allScreens = data.screens || [];
+    screensLoaded = true;
+    if (!allScreens.length) { pick.innerHTML = '<div class="insp-empty">No screens available.</div>'; return; }
+    var pre = new URLSearchParams(location.search).get('screen');
+    pick.innerHTML = allScreens.map(function(s){
+      var c = s.online ? 'var(--success)' : 'var(--error)';
+      var checked = String(s.id) === String(pre) ? ' checked' : '';
+      return '<label class="screen-opt' + (checked?' sel':'') + '">' +
+        '<input type="checkbox" value="' + s.id + '"' + checked + ' onchange="this.closest(\'.screen-opt\').classList.toggle(\'sel\',this.checked)">' +
+        '<span class="sdot" style="background:' + c + '"></span>' +
+        '<span class="snm">' + esc(s.name || 'Screen ' + s.id) + '</span>' +
+      '</label>';
+    }).join('');
+  }).catch(function(){
+    document.getElementById('screen-pick').innerHTML = '<div class="insp-empty" style="color:var(--error)">Error loading screens.</div>';
+  });
+}
+
+function selectedScreenIds() {
+  return Array.prototype.slice.call(document.querySelectorAll('#screen-pick input:checked')).map(function(i){return i.value;});
+}
+
+// Render the design at exactly the target resolution. The on-screen canvas is
+// rounded to whole pixels, so its aspect can drift a hair from 16:9 / 9:16 —
+// drawing onto a target-sized canvas guarantees exact output dimensions.
+function exportBlob() {
+  canvas.discardActiveObject();
+  canvas.renderAll();
+  var target = SIZES[orientation];
+  var multiplier = target.w / canvas.getWidth();
+  var dataUrl = canvas.toDataURL({ format: 'png', multiplier: multiplier });
+
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload = function() {
+      var out = document.createElement('canvas');
+      out.width = target.w;
+      out.height = target.h;
+      var ctx = out.getContext('2d');
+      ctx.fillStyle = canvas.backgroundColor || '#000';
+      ctx.fillRect(0, 0, target.w, target.h);
+      ctx.drawImage(img, 0, 0, target.w, target.h);
+      out.toBlob(function(blob) {
+        blob ? resolve(blob) : reject(new Error('Could not render slide.'));
+      }, 'image/png');
+    };
+    img.onerror = function() { reject(new Error('Could not render slide.')); };
+    img.src = dataUrl;
+  });
+}
+
+function doPublish() {
+  var ids = selectedScreenIds();
+  if (!ids.length) return showToast('Pick at least one screen.', 'error');
+  var name = (document.getElementById('pub-name').value || '').trim() || ('Designed Slide ' + new Date().toLocaleDateString());
+  var dur = parseInt(document.getElementById('pub-dur').value) || 10;
+  var btn = document.getElementById('pub-go');
+  btn.disabled = true; btn.textContent = 'Rendering...';
+
+  // ensure custom fonts are loaded before rasterizing
+  var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  ready.then(function(){ canvas.renderAll(); return exportBlob(); }).then(function(blob){
+    btn.textContent = 'Publishing...';
+    var form = new FormData();
+    form.append('file', blob, 'slide-' + Date.now() + '.png');
+    form.append('displayName', name);
+    form.append('duration', String(dur));
+    ids.forEach(function(id){ form.append('screenIds', id); });
+    return fetch('/api/publish', { method:'POST', body: form });
+  }).then(function(r){
+    // requireClient redirects unauthenticated calls to /login, which yields HTML.
+    // Detect that so an expired session doesn't look like a network failure.
+    if (r.redirected || (r.url && /\/login/.test(r.url))) {
+      throw new Error('SESSION_EXPIRED');
+    }
+    return r.json();
+  }).then(function(d){
+    btn.disabled = false; btn.textContent = 'Publish Slide';
+    if (d.success) {
+      showToast('Published! ' + (d.message || ''), 'success');
+      closePublish();
+    } else {
+      showToast(d.error || 'Publish failed.', 'error');
+    }
+  }).catch(function(err){
+    btn.disabled = false; btn.textContent = 'Publish Slide';
+    if (err && err.message === 'SESSION_EXPIRED') {
+      showToast('Your session expired. Open /login in a new tab, sign in, then publish again — your design is still here.', 'error');
+    } else {
+      showToast('Could not publish. Your design is still here — try again.', 'error');
+    }
+  });
+}
+
+// ── Utils ─────────────────────────────────────────────────
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toHex(c){
+  if (!c) return '#ffffff';
+  if (typeof c === 'string' && c[0] === '#') return c.length===4 ? '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c.slice(0,7);
+  // rgb/rgba
+  var m = String(c).match(/(\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return '#ffffff';
+  return '#' + [m[1],m[2],m[3]].map(function(x){var h=parseInt(x).toString(16);return h.length===1?'0'+h:h;}).join('');
+}
+function debounce(fn, ms){ var t; return function(){ var a=arguments,c=this; clearTimeout(t); t=setTimeout(function(){fn.apply(c,a);},ms); }; }
+var toastTimer;
+function showToast(msg, type){
+  var t=document.getElementById('toast');
+  document.getElementById('t-msg').textContent=msg;
+  document.getElementById('t-icon').textContent=type==='success'?'✅':'⚠️';
+  t.className='show '+(type||'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.className='';},4500);
+}
+
+// ── Init ──────────────────────────────────────────────────
+window.addEventListener('load', function(){
+  buildCanvas();
+  // default orientation from query (?orient=portrait) if present
+  var qo = new URLSearchParams(location.search).get('orient');
+  if (qo === 'portrait') setOrientation('portrait');
+});
+</script>
+</body>
+</html>

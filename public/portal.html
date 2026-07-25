@@ -42,6 +42,8 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 .btn-push.pushed{border-color:var(--success);color:var(--success)}
 .btn-add{background:linear-gradient(135deg,#f97316,#ea580c);border:none;color:white}
 .btn-add:hover{opacity:.9}
+.btn-design{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.btn-design:hover{border-color:var(--accent);color:var(--accent)}
 .pl-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .pl-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .pl-count{font-size:12px;color:var(--muted);background:var(--surface2);padding:2px 8px;border-radius:10px}
@@ -109,7 +111,7 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast.success{border-color:rgba(52,211,153,.4)}
 #toast.error{border-color:rgba(248,113,113,.4)}
-@media(max-width:700px){main{grid-template-columns:1fr;grid-template-rows:auto 1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border);padding:10px 12px;display:flex;gap:6px;overflow-x:auto;min-height:0}.sidebar-title{display:none}.screen-btn{white-space:nowrap;width:auto;padding:8px 14px;font-size:13px}.cnt-badge{display:none}.content{padding:16px 14px}.screen-hdr{gap:8px;margin-bottom:16px}.screen-hdr h1{font-size:20px;width:100%;order:1}.online-badge{order:2}#push-btn{order:3;font-size:12px;padding:8px 12px}.hdr-btn.btn-add{order:4;font-size:12px;padding:8px 12px}.slide-item{padding:10px 10px;gap:8px}.slide-thumb{width:44px;height:32px}.slide-num{width:20px;height:20px;font-size:10px}.slide-name{font-size:12px}.slide-type{font-size:10px}.dur-input{width:52px;font-size:12px;padding:4px 6px}.dur-label{font-size:9px}.rm-btn{font-size:11px;padding:4px 8px}.order-btn{width:22px;height:22px;font-size:11px}.pl-hdr{flex-wrap:wrap;gap:6px}.refresh-btn{margin-left:0}}
+@media(max-width:700px){main{grid-template-columns:1fr;grid-template-rows:auto 1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border);padding:10px 12px;display:flex;gap:6px;overflow-x:auto;min-height:0}.sidebar-title{display:none}.screen-btn{white-space:nowrap;width:auto;padding:8px 14px;font-size:13px}.cnt-badge{display:none}.content{padding:16px 14px}.screen-hdr{gap:8px;margin-bottom:16px}.screen-hdr h1{font-size:20px;width:100%;order:1}.online-badge{order:2}#push-btn{order:3;font-size:12px;padding:8px 12px}.hdr-btn.btn-design{order:4;font-size:12px;padding:8px 12px}.hdr-btn.btn-add{order:5;font-size:12px;padding:8px 12px}.slide-item{padding:10px 10px;gap:8px}.slide-thumb{width:44px;height:32px}.slide-num{width:20px;height:20px;font-size:10px}.slide-name{font-size:12px}.slide-type{font-size:10px}.dur-input{width:52px;font-size:12px;padding:4px 6px}.dur-label{font-size:9px}.rm-btn{font-size:11px;padding:4px 8px}.order-btn{width:22px;height:22px;font-size:11px}.pl-hdr{flex-wrap:wrap;gap:6px}.refresh-btn{margin-left:0}}
 </style>
 </head>
 <body>
@@ -135,6 +137,10 @@ main{position:relative;z-index:1;display:grid;grid-template-columns:280px 1fr;mi
         <button class="hdr-btn btn-push" id="push-btn" onclick="pushScreen()">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           Push to Screen
+        </button>
+        <button class="hdr-btn btn-design" onclick="openDesigner()">
+          <svg viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
+          Design a Slide
         </button>
         <button class="hdr-btn btn-add" onclick="openModal()">
           <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
@@ -371,6 +377,12 @@ function pushScreen() {
     btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Push to Screen';
     showToast('Network error.', 'error');
   });
+}
+
+function openDesigner() {
+  var url = '/editor';
+  if (currentScreenId) url += '?screen=' + encodeURIComponent(currentScreenId);
+  window.location.href = url;
 }
 
 function openModal() {
