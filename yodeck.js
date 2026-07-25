@@ -362,7 +362,38 @@ function probeAlertEndpoints(token) {
       base + '/status/'
     ];
     return Promise.all(actions.map(probe)).then(function(stage2) {
-      return { stage1: stage1, alertIdProbed: id, stage2: stage2 };
+      // Stage 3: OPTIONS gives the POST schema without POSTing (DRF-style
+      // metadata), and a full screen record shows how alert types attach to
+      // screens — screen_assigned_count is 0 on this account, so assignment
+      // is the missing link.
+      var opts = function(p) {
+        return api.request({ method: 'OPTIONS', url: p })
+          .then(function(r) { return { path: p, method: 'OPTIONS', status: r.status, data: r.data }; })
+          .catch(function(e) { return { path: p, method: 'OPTIONS', status: e.response ? e.response.status : 'no response',
+                                        data: e.response ? e.response.data : undefined }; });
+      };
+      var screenDetail = api.get('/screens/').then(function(r) {
+        var list = (r.data && (r.data.results || r.data)) || [];
+        var first = Array.isArray(list) ? list[0] : null;
+        if (!first || !first.id) return { note: 'no screens visible to this token' };
+        return api.get('/screens/' + first.id + '/').then(function(sr) {
+          var s = sr.data || {};
+          var alertish = {};
+          Object.keys(s).forEach(function(k) {
+            if (/alert|emerg/i.test(k)) alertish[k] = s[k];
+          });
+          return { screenId: first.id, fields: Object.keys(s), alertFields: alertish };
+        });
+      }).catch(function(e) { return { error: e.message }; });
+
+      return Promise.all([
+        opts(base + '/' + id + '/broadcast/'),
+        opts(base + '/'),
+        screenDetail
+      ]).then(function(extra) {
+        return { stage1: stage1, alertIdProbed: id, stage2: stage2,
+                 stage3: { broadcastOptions: extra[0], listOptions: extra[1], screen: extra[2] } };
+      });
     });
   });
 }
