@@ -379,20 +379,29 @@ function alertOrder(a, b) {
 
 function renderAlertPanel() {
   var body = document.getElementById('al-body');
-  var unassigned = alTypes.length && alTypes.every(function(a){ return !a.screen_assigned_count; });
+  // Show setup while ANY type is unassigned — with .every() the button
+  // vanished as soon as one type was assigned in the Yodeck dashboard,
+  // leaving the other eleven unbroadcastable with no way to fix it here.
+  var missing = alTypes.filter(function(a){ return !a.screen_assigned_count; }).length;
   var html = '';
 
-  if (unassigned) {
-    html += '<div class="al-note">Alerts are not set up on your screens yet, so a broadcast would have nowhere to show. ' +
-            'Enable them once and each screen downloads the alert content for instant display.<br>' +
+  if (missing) {
+    html += '<div class="al-note">' +
+            (missing === alTypes.length
+              ? 'Alerts are not set up on your screens yet, so a broadcast would have nowhere to show.'
+              : missing + ' of ' + alTypes.length + ' alert types are not on your screens yet and cannot broadcast.') +
+            ' Enable them once and each screen downloads the alert content for instant display.<br>' +
             '<button class="upload-btn" style="margin-top:10px;font-size:13px" onclick="setupAlerts(this)">Enable alerts on my screens</button></div>';
   }
 
   if (!alSelected) {
     html += alTypes.slice().sort(alertOrder).map(function(a){
+      var tag = a.screen_assigned_count
+        ? esc(a.category)
+        : '<span style="color:#f87171">not on screens</span>';
       return '<button class="al-type" onclick="selectAlert(' + a.id + ')">' +
                esc(a.headline || a.name) +
-               '<span class="al-cat">' + esc(a.category) + '</span></button>';
+               '<span class="al-cat">' + tag + '</span></button>';
     }).join('');
     body.innerHTML = html || '<div style="font-size:13px;color:var(--muted)">No alert types found.</div>';
     return;
