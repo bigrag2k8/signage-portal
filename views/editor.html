@@ -111,7 +111,7 @@ nav{position:relative;z-index:100;background:rgba(10,10,15,.92);border-bottom:1p
 <nav>
   <div class="nav-logo"><div class="nav-dot"></div>Slide Designer</div>
   <div class="nav-right">
-    <a href="/portal" class="link-btn">&larr; Back to Portal</a>
+    <a href="/portal" class="link-btn" id="back-link">&larr; Back to Portal</a>
     <button class="publish-btn" onclick="openPublish()">
       <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       Publish to Signage
@@ -917,6 +917,8 @@ function doPublish() {
     return pushToScreens(ids).then(function(failed){
       btn.disabled = false; btn.textContent = 'Publish Slide';
       closePublish();
+      // You may have published to a different screen than you arrived from.
+      syncBackLink(ids[0]);
       if (!failed.length) {
         showToast('Published and pushed to ' + ids.length + ' screen' + (ids.length > 1 ? 's' : '') + '!', 'success');
       } else {
@@ -956,11 +958,19 @@ function showToast(msg, type){
 }
 
 // ── Init ──────────────────────────────────────────────────
+// Carry the screen through the round trip, so returning to the portal lands on
+// the screen you were designing for rather than the "Select a Screen" state.
+function syncBackLink(screenId) {
+  var a = document.getElementById('back-link');
+  if (a && screenId) a.href = '/portal?screen=' + encodeURIComponent(screenId);
+}
+
 window.addEventListener('load', function(){
   buildCanvas();
   // default orientation from query (?orient=portrait) if present
   var qo = new URLSearchParams(location.search).get('orient');
   if (qo === 'portrait') setOrientation('portrait');
+  syncBackLink(new URLSearchParams(location.search).get('screen'));
   // Seed the stack with the empty canvas so the first edit has something to
   // undo back to.
   resetHistory();

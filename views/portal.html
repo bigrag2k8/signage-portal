@@ -231,6 +231,7 @@ function loadScreens() {
         if (s) selectScreen(s);
       });
     });
+    autoSelectScreen();
     allScreens.forEach(function(s) {
       fetch('/api/playlist/' + s.id).then(function(r) { return r.json(); }).then(function(d) {
         var c = document.getElementById('cnt-' + s.id);
@@ -242,8 +243,26 @@ function loadScreens() {
   });
 }
 
+// Landing on "Select a Screen" every time is wasted clicks — especially coming
+// back from the designer, or when the account only has one screen.
+function autoSelectScreen() {
+  var byId = function(id) {
+    return allScreens.find(function(x) { return String(x.id) === String(id); });
+  };
+  var wanted =
+    byId(new URLSearchParams(location.search).get('screen')) ||   // returning from the designer
+    byId(safeGet('lastScreenId')) ||                              // whatever you looked at last
+    (allScreens.length === 1 ? allScreens[0] : null);             // no ambiguity to resolve
+  if (wanted) selectScreen(wanted);
+}
+
+// Private-mode browsers throw on storage access rather than no-op.
+function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
 function selectScreen(s) {
   currentScreenId = s.id;
+  safeSet('lastScreenId', String(s.id));
   document.querySelectorAll('.screen-btn').forEach(function(b) { b.classList.remove('active'); });
   var btn = document.getElementById('sb-' + s.id);
   if (btn) btn.classList.add('active');
