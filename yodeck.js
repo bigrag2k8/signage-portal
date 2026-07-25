@@ -361,11 +361,13 @@ function broadcastAlert(token, alertId, overrides) {
     });
 }
 
-// No cancel endpoint surfaced during discovery; DELETE on the broadcast
-// subresource is the conventional shape, so it is attempted and honesty is
-// left to the caller if Yodeck refuses it.
-function cancelAlertBroadcast(token, alertId) {
-  return makeClient(token).delete('/emergency-alerts/' + alertId + '/broadcast/')
+// The broadcast POST returns a broadcast_hash identifying the running
+// broadcast (and an end_time — Yodeck applies a 2h default duration its
+// schema never mentions). Plain DELETE on /broadcast/ 405s, so cancel
+// targets the instance by hash; without a hash there is nothing to try.
+function cancelAlertBroadcast(token, alertId, broadcastHash) {
+  if (!broadcastHash) return Promise.reject(new Error('No broadcast hash recorded for this alert'));
+  return makeClient(token).delete('/emergency-alerts/' + alertId + '/broadcast/' + broadcastHash + '/')
     .then(function(res) {
       console.log('Broadcast cancel response:', res.status);
       return { cancelled: true };

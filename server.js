@@ -453,7 +453,18 @@ function sweepExpiredTakeovers() {
   });
 }
 
-setInterval(sweepExpiredTakeovers, 30 * 1000);
+// Yodeck ends broadcasts itself at end_time; this clears our banner to match,
+// so it never claims an alert is live after the screens have dropped it.
+function sweepEndedAlerts() {
+  db.getEndedActiveAlerts().forEach(function(a) {
+    db.clearActiveAlert(a.company_id);
+    db.logAlert({ company_id: a.company_id, action: 'auto-ended', alert_id: a.alert_id,
+                  alert_name: a.alert_name, headline: a.headline, user_name: '(system)' });
+    console.log('Alert for company', a.company_id, 'reached its end time; banner cleared');
+  });
+}
+
+setInterval(function() { sweepExpiredTakeovers(); sweepEndedAlerts(); }, 30 * 1000);
 
 // ── Emergency alerts ──────────────────────────────────────
 // Native Yodeck alerts: content is pre-loaded onto each player's SD card once
@@ -522,10 +533,19 @@ app.post('/api/alerts/:id/broadcast', auth.requireClient, function(req, res) {
     if (!body.headline || !body.description || !body.instruction) {
       return res.status(400).json({ error: 'Headline, description and instructions are all required.' });
     }
-    return yodeck.broadcastAlert(token, tpl.id, body).then(function() {
+    // The schema does not document a duration, but responses carry end_time
+    // (2h default). Sending end_time is harmless if ignored — the banner
+    // always shows what Yodeck's response says, not what was asked for.
+    var hours = parseInt(req.body.durationHours, 10);
+    if ([2, 5, 12, 24, 48].indexOf(hours) !== -1) {
+      body.end_time = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+    }
+    return yodeck.broadcastAlert(token, tpl.id, body).then(function(resp) {
       var row = db.setActiveAlert({
         company_id: client.company_id, alert_id: tpl.id, alert_name: tpl.name,
         category: tpl.category, headline: body.headline,
+        broadcast_hash: resp && resp.broadcast_hash,
+        ends_at: resp && resp.end_time,
         user_id: client.id, user_name: client.username
       });
       db.logAlert({ company_id: client.company_id, action: 'broadcast', alert_id: tpl.id,
@@ -549,7 +569,7 @@ app.delete('/api/alerts/broadcast', auth.requireClient, function(req, res) {
   var active = db.getActiveAlert(client.company_id);
   if (!active) return res.status(404).json({ error: 'No alert is active.' });
 
-  yodeck.cancelAlertBroadcast(client.yodeck_token, active.alert_id).then(function() {
+  yodeck.cancelAlertBroadcast(client.yodeck_token, active.alert_id, active.broadcast_hash).then(function() {
     db.clearActiveAlert(client.company_id);
     db.logAlert({ company_id: client.company_id, action: 'cancelled', alert_id: active.alert_id,
                   alert_name: active.alert_name, user_name: client.username });
@@ -699,6 +719,7 @@ var PORT = process.env.PORT || 3000;
 app.listen(PORT, function() {
   console.log('Signage Portal running on port ' + PORT);
   sweepExpiredTakeovers();
+  sweepEndedAlerts();
   console.log('Client login:  /login');
   console.log('Admin login:   /admin/login');
 });

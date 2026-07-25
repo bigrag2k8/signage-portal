@@ -348,7 +348,10 @@ function renderAlertBanner(active) {
       '<div class="al-live-txt"><b>EMERGENCY ALERT LIVE &mdash; ' + esc(active.headline) + '</b>' +
         '<span>' + esc(active.alert_name) + ' &middot; fired by ' + esc(active.fired_by_name) +
         ' at ' + fired.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) +
-        ' &middot; stays up until ended</span></div>' +
+        (active.ends_at
+          ? ' &middot; ends on its own at ' + new Date(active.ends_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})
+          : ' &middot; stays up until ended') +
+        '</span></div>' +
       (alCancelFailed
         ? '<button class="al-end" onclick="markAlertEnded()">Mark as ended</button>'
         : '<button class="al-end" onclick="endAlert()">End alert</button>') +
@@ -414,7 +417,11 @@ function renderAlertPanel() {
     '<div class="field"><label>Headline</label><input type="text" id="al-headline" maxlength="256" value="' + esc(t.headline) + '"></div>' +
     '<div class="field"><label>Description</label><textarea id="al-desc" maxlength="2048" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;min-height:52px">' + esc(t.description) + '</textarea></div>' +
     '<div class="field"><label>Instructions</label><textarea id="al-instr" maxlength="2048" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13px;min-height:52px">' + esc(t.instruction) + '</textarea></div>' +
-    '<div class="al-note">Goes to <b>every screen</b> in your account and stays up until you end it from this page.</div>' +
+    '<div class="field"><label>Show for</label><select id="al-dur">' +
+      '<option value="2" selected>2 hours</option><option value="5">5 hours</option>' +
+      '<option value="12">12 hours</option><option value="24">24 hours</option>' +
+      '<option value="48">48 hours</option></select></div>' +
+    '<div class="al-note">Goes to <b>every screen</b> in your account. Ends on its own after the time above, or when you end it from this page.</div>' +
     '<div class="field"><label>Type ALERT to confirm</label><input type="text" id="al-confirm" autocomplete="off" oninput="document.getElementById(\'al-go\').disabled=this.value!==\'ALERT\'"></div>' +
     '<button class="al-fire" id="al-go" disabled onclick="fireAlert()">Broadcast emergency alert</button>';
   body.innerHTML = html;
@@ -451,7 +458,8 @@ function fireAlert() {
       confirm: document.getElementById('al-confirm').value,
       headline: document.getElementById('al-headline').value,
       description: document.getElementById('al-desc').value,
-      instruction: document.getElementById('al-instr').value
+      instruction: document.getElementById('al-instr').value,
+      durationHours: document.getElementById('al-dur').value
     })
   }).then(function(r){ return r.json(); }).then(function(d){
     if (!d.success) {

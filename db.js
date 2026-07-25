@@ -385,12 +385,25 @@ var dbHelper = {
       alert_name: data.alert_name,
       category: data.category || '',
       headline: data.headline,
+      // From Yodeck's broadcast response: the instance handle for cancelling,
+      // and when Yodeck itself will end the broadcast.
+      broadcast_hash: data.broadcast_hash || null,
+      ends_at: data.ends_at || null,
       fired_by: Number(data.user_id),
       fired_by_name: data.user_name || '',
       fired_at: new Date().toISOString()
     };
     db.get('active_alerts').push(row).write();
     return row;
+  },
+
+  // Alerts whose Yodeck-reported end_time has passed — the broadcast is over
+  // on the screens, so the banner must not keep claiming it is live.
+  getEndedActiveAlerts: function(now) {
+    var cutoff = now || Date.now();
+    return db.get('active_alerts').filter(function(a) {
+      return a.ends_at && new Date(a.ends_at).getTime() <= cutoff;
+    }).value();
   },
 
   clearActiveAlert: function(companyId) {
